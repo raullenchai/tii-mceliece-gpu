@@ -2,13 +2,14 @@
 IACR ePrint Archive Submission Form — Ready-to-Paste Metadata
 Submission URL: https://eprint.iacr.org/submit
 PDF to Upload:  /Users/raullenmini/orca/workspaces/products/chiton/research/tii_mceliece_gpu/paper/main.pdf
+Public Repo:    https://github.com/raullenchai/tii-mceliece-gpu
 ================================================================================
 
 TITLE:
-L2-Sized Cooperative GPU-Accelerated Primal-Shortened ISD: Recovering TII-237 (mt = 135) on Commodity GPUs
+Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD and Key Recovery on TII-237 (mt=135)
 
 AUTHORS:
-Raullen Chai (MachineFi Labs)
+Raullen Qi Chai (MachineFi Labs)
 
 CONTACT EMAIL:
 raullen@machinefi.com
@@ -20,7 +21,11 @@ KEYWORDS:
 McEliece cryptosystem, binary Goppa codes, information-set decoding, GPU cryptanalysis, TII McEliece Challenges
 
 ABSTRACT (plain text, ready for web form):
-Structural key recovery on binary Goppa codes has progressed rapidly during 2026 on the public TII McEliece Track-2 challenges. Most recently, MiniMax introduced Primal-Shortened Information-Set Decoding (ISD) (Route A) alongside HOVER (Route B), recovering 94 Track-2 keys and reaching codimension mt = 126 (TII-228, 2,463 physical CPU core-hours in 57.1 min on 2,048-5,120 EPYC cores) and mt = 120 (TII-250, 66,722 core-hours on 5,120-10,240 cores). Building directly on MiniMax's Route-A algebraic recovery framework, Mode-6 Stern-style sampler (p = 3 + 3, l = 17), and shortening schedule, we redesign the minimum odd-weight codeword harvester for GPU memory hierarchies. Combining (i) lossless 16-byte ulonglong2 syndrome packing without left-index storage (mt <= 145), (ii) cooperative execution over G = 4 concurrent hash tables (35.7 MB total footprint, sized to fit nominal L4/A100 L2 caches), and (iii) full-SM batched random systematic reduction eliminating a 74.0% Gaussian-elimination bottleneck, we sustain 9,462 it/s on TII-237 and 11,035 it/s on TII-245 on a single NVIDIA L4 GPU. On the benchmark instance TII-245 (mt = 108), a single L4 harvests 24,500 codewords in 1,175.5 s (1,185.3 s end-to-end including 9.78 s SageMath algebraic lift), compared to 2,500 s harvesting (26,352 words; 2,510 s end-to-end) on a 64-core Xeon Gold 6338 server (2.12x end-to-end, ~1.9x target-normalized). Using commodity Colab GPUs (~22.1 aggregate GPU-hours, ~7.0e8 ISD iterations, 68.97 total account CU across development and production), we harvest 29,742 verified weight-31 codewords and recover a verified equivalent private key for TII-237 (n = 500, m = 9, t = 15, mt = 135) in 23.23 s of algebraic post-processing—to our knowledge, as of November 22, 2026, the highest codimension mt among publicly documented Track-2 solutions. These experiments do not demonstrate practical key recovery against proposed Classic McEliece parameter sets (mt >= 768).
+MiniMax recently showed that Primal-Shortened Information-Set Decoding (ISD) with quadratic polar lifting recovers keys from high-codimension TII McEliece Track-2 challenges, reaching mt = 126 on TII-228 in 2,463 CPU core-hours. On instances with mt >= 108, over 99% of runtime goes to harvesting minimum odd-weight (w = 2t + 1) codewords of a shortened parity-check matrix H_A. We ask whether that harvesting bottleneck moves cleanly from CPU clusters to GPUs without changing the algebraic attack.
+
+A per-SM GPU port of MiniMax's Mode-6 Stern sampler (p = 3 + 3, l = 17) keeps 1.0-1.5 GB of hash tables active and stalls on global memory. For mt <= 145, we pack all mt - 17 <= 128 remaining syndrome bits into one 16-byte ulonglong2 without storing left-triple indices, cooperate across all SMs on G = 4 concurrent tables (35.7 MB total, below the 50.3 MB L4 and 41.9 MB A100 L2 caches), and batch 256 random systematic reductions per launch after profiling showed unbatched elimination spent 74.0% of runtime with 54/58 SMs idle.
+
+On one NVIDIA L4, the kernel sustains 11,035 it/s on TII-245 and 9,462 it/s on TII-237 (3.1x and 4.3x over our per-SM port). On TII-245 (mt = 108), a single L4 recovers an equivalent private key in 1,185.3 s end-to-end (2.12x faster than MiniMax's 64-core Xeon run, or ~1.9x normalized for target size). Across ~22.1 Colab L4 GPU-hours (~7.4e8 iterations), we harvest 29,742 weight-31 codewords for TII-237 (n = 500, m = 9, t = 15, mt = 135) and recover an equivalent private key in 23.23 s of SageMath post-processing—to our knowledge as of November 22, 2026, the largest codimension among publicly documented Track-2 solutions. These experiments do not demonstrate practical recovery against proposed Classic McEliece parameter sets (mt >= 768).
 
 OPTIONAL COMMENT:
 Public artifact repository (verified equivalent private keys sk_McEliece_245.txt and sk_McEliece_237.txt, harvested codeword datasets, CUDA implementation under Apache-2.0 derived from MiniMax, and zero-dependency pure-Python verifier): https://github.com/raullenchai/tii-mceliece-gpu

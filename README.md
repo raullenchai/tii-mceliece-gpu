@@ -1,6 +1,8 @@
-# L2-Sized Cooperative GPU-ISD for Binary Goppa Key Recovery (TII McEliece Track 2)
+# Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD & Key Recovery on `TII-237` ($mt=135$)
 
-This directory contains our CUDA-accelerated **L2-Sized Cooperative Stern-Style ISD** sampler (`src/minwords_gpu_v4.cu`), baseline evolution (`src/baselines/`), accompanying manuscript (`paper/main.pdf`), harvested codeword datasets (`codewords/`), zero-dependency verifier (`src/verify_witnesses.py`), and verified equivalent private-key witnesses (`witnesses/`) for Track 2 of the **TII McEliece Key Recovery Challenges**.
+Accompanying artifact repository for **Raullen Qi Chai** (MachineFi Labs), *"Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD and Key Recovery on TII-237 ($mt=135$)"* (`paper/main.pdf`).
+
+This repository contains our CUDA-accelerated **L2-Sized Cooperative Stern-Style ISD** sampler (`src/minwords_gpu_v4.cu`), baseline evolution (`src/baselines/`), manuscript (`paper/main.pdf`), harvested codeword datasets (`codewords/`), zero-dependency verifier (`src/verify_witnesses.py`), and verified equivalent private-key witnesses (`witnesses/`) for Track 2 of the **TII McEliece Key Recovery Challenges**.
 
 ## Attribution & Scope
 
@@ -9,15 +11,15 @@ This work builds directly on **MiniMax's Primal-Shortened ISD** algebraic recove
 Our contribution is focused on **GPU memory-hierarchy engineering** of the minimum odd-weight codeword harvester (`src/minwords_gpu_v4.cu`):
 
 1. **Lossless 16-Byte `ulonglong2` Syndrome Packing (Zero Index Storage)**: For $mt \le 145$ and $l = 17$, all $mt - 17 \le 128$ remaining syndrome bits pack losslessly into one `ulonglong2` (4 slots/bucket = 64-byte aligned payload, plus separate 4-byte count array), omitting left triple indices from the hot bucket table.
-2. **Cooperative L2-Sized Execution ($G = 4$)**: Rather than one independent hash table per SM (516 MB–1.03 GB), all SMs cooperate on $G = 4$ concurrent reductions (`35,717,120 B` / `35.7 MB` working set), sized to fit within nominal NVIDIA L4 (`50.3 MB`) and A100 (`41.9 MB`) L2 caches.
-3. **Full-SM Batched Systematic Reduction**: CUDA event profiling of `v3` showed sequential per-group Gaussian elimination (`k_sys`) consumed **74.0%** of kernel time (`68.0 ms / 91.9 ms`). Batching $256$ independent reductions in `k_sys<<<256, 256>>>` boosted L4 throughput $3.5\times$ (from `2,671` to **`9,462 it/s`** on `TII-237` and **`11,035 it/s`** on `TII-245`).
+2. **Cooperative L2-Sized Execution ($G = 4$)**: Rather than one independent hash table per SM (`1.04–1.49 GB`), all SMs cooperate on $G = 4$ concurrent reductions (`35,717,120 B` / `35.7 MB` working set), sized to fit below nominal NVIDIA L4 (`50.3 MB`) and A100 (`41.9 MB`) L2 caches.
+3. **Full-SM Batched Systematic Reduction**: CUDA event profiling of `v3` showed sequential per-group Gaussian elimination (`k_sys`) consumed **74.0%** of kernel time (`68.0 ms / 91.9 ms`). Batching $256$ independent reductions in `k_sys<<<256, 256>>>` boosted L4 throughput $3.5\times$ on `TII-237` (from `2,671` to **`9,462 it/s`**) and $3.17\times$ on `TII-245` (**`11,035 it/s`**).
 
 ## Results
 
 | Challenge | $(n, m, t)$ | $mt$ | Reference / Prior Status | Our Compute & Timing | Algebraic Lift | Verification |
 | :--- | :--- | :---: | :--- | :--- | :---: | :---: |
-| **`TII-245`** (control) | $(493, 9, 12)$ | `108` | MiniMax (64-core Xeon): `2,500 s` ISD (`26,352` words), `2,510 s` e2e | **1× L4**: `1,175.5 s` ISD (`24,500` words, `12.96M` iters), `1,185.3 s` e2e (`2.12×` e2e, `~1.9×` normalized) | `9.78 s` | **PASS** (`1`) |
-| **`TII-237`** | $(500, 9, 15)$ | **`135`** | Highest publicly documented Track-2 $mt$ known to us as of 2026-11-22 (prior highest: `TII-228`, $mt=126$, `2,463` core-h on `2,048–5,120` EPYC cores) | **Commodity Colab GPUs**: `~22.1 GPU-h` (`~7.0×10⁸` iters, `29,742` unique words; `68.97 CU` total account spend across dev + runs) | **`23.23 s`** | **PASS** (`1`) |
+| **`TII-245`** (control) | $(493, 9, 12)$ | `108` | MiniMax (64-core Xeon): `2,500 s` ISD (`26,352` words), `2,510 s` e2e | **1× L4**: `1,175.5 s` ISD (`24,500` words, `12.96M` iters), `1,185.3 s` e2e (`2.12×` e2e, `~1.91×` normalized) | `9.78 s` | **PASS** (`1`) |
+| **`TII-237`** | $(500, 9, 15)$ | **`135`** | Highest publicly documented Track-2 $mt$ known to us as of 2026-11-22 (prior highest: `TII-228`, $mt=126$, `2,463` core-h on `2,048–5,120` EPYC cores) | **Colab L4 GPUs**: `~22.1 GPU-h` (`~7.4×10⁸` iters, `29,742` unique words; `68.97 CU` total account spend across dev + runs) | **`23.23 s`** | **PASS** (`1`) |
 
 ### Cryptographic Digests ($\mathbb{F}_{2^9} = \mathbb{F}_2[a]/(a^9 + a^4 + 1)$)
 
