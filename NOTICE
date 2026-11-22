@@ -1,0 +1,21 @@
+TII McEliece GPU-Accelerated Primal-Shortened ISD
+Copyright (C) 2026 Raullen Chai
+
+This package includes derivative works based on the MiniMax TII-McEliece
+cryptanalysis repository:
+  https://github.com/MiniMax-AI/Research/tree/main/Cryptography/TII-McEliece
+  Copyright (C) 2026 MiniMax
+  Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Specifically:
+- `src/minwords_gpu_v4.cu` and `src/baselines/minwords_gpu_v{1,2,3}.cu` are
+  CUDA ports/redesigns derived from MiniMax's CPU OpenMP sampler `minwords_mt.c`
+  (retaining Mode-6 Stern parameters p=3+3, l=17, 16 KB occupancy bitmap,
+  CLI convention, support hashing, and deduplication table structure).
+- `src/solve_from_words.py` is derived from MiniMax's `tii_runner.py` and
+  invokes MiniMax's `goppa_attack.py` algebraic recovery routines.
+- Shortening sizes (n'=326 for TII-245, n'=378 for TII-237) follow MiniMax's
+  `optimal_shortening_sizes` schedule.
+
+TII McEliece public-key challenges and `check_solution_track2.sage` originate from:
+  https://github.com/ElenaKirshanova/tii_decoding_challenge
