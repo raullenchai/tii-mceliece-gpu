@@ -1,6 +1,6 @@
-# Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD & Key Recovery up to `TII-235` ($mt=144$)
+# Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD for High-Codimension Binary Goppa Key Recovery
 
-Accompanying artifact repository for **Raullen Chai & Xinxin Fan** (MachineFi Labs), *"Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD and Key Recovery up to TII-235 ($mt=144$)"* (`paper/main.pdf`).
+Accompanying artifact repository for **Raullen Chai & Xinxin Fan** (MachineFi Labs), *"Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD for High-Codimension Binary Goppa Key Recovery"* (`paper/main.pdf`).
 
 This repository contains our CUDA-accelerated **L2-Sized Cooperative Stern-Style ISD** sampler (`src/minwords_gpu_v4.cu`), baseline evolution (`src/baselines/`), manuscript (`paper/main.pdf`), all **131,679** verified harvested codewords (`codewords/`), zero-dependency verifier (`src/verify_witnesses.py`), and four verified equivalent private-key witnesses (`witnesses/`) for Track 2 of the **TII McEliece Key Recovery Challenges**.
 
