@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>用普通 Colab GPU 攻破 TII-237 (mt=135) — L2 缓存导向的 GPU-ISD 全景图解</title>
+<title>Packing Stern into L2 — Visual Explainer for GPU-Accelerated Binary Goppa Key Recovery</title>
 <style>
   :root {
     --bg: #0b1020;
@@ -20,12 +20,12 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
     background: radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.12), transparent 40%),
                 radial-gradient(circle at 85% 20%, rgba(167, 139, 250, 0.10), transparent 42%),
                 var(--bg);
     color: var(--text);
-    line-height: 1.72;
+    line-height: 1.68;
     padding: 32px 18px 80px;
   }
   .container { max-width: 1020px; margin: 0 auto; }
@@ -35,7 +35,7 @@
     background: linear-gradient(145deg, rgba(24, 35, 63, 0.9), rgba(18, 26, 47, 0.7));
     border: 1px solid var(--border);
     border-radius: 20px;
-    margin-bottom: 32px;
+    margin-bottom: 30px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
   }
   .badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
@@ -49,43 +49,49 @@
   .badge.purple { border-color: rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.12); color: var(--accent2); }
   h1 {
     font-size: clamp(24px, 3.6vw, 38px);
-    font-weight: 800; line-height: 1.25; margin-bottom: 14px;
+    font-weight: 800; line-height: 1.22; margin-bottom: 14px;
     background: linear-gradient(90deg, #f8fafc, #7dd3fc, #c4b5fd);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   }
-  header p { color: var(--muted); max-width: 760px; margin: 0 auto; font-size: 16px; }
+  header p { color: var(--muted); max-width: 780px; margin: 0 auto; font-size: 15.5px; }
+  .header-links { margin-top: 16px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .header-links a {
+    color: #e2e8f0; text-decoration: none; font-size: 13px; font-weight: 600;
+    padding: 6px 14px; border-radius: 8px; background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border); transition: border-color 0.15s;
+  }
+  .header-links a:hover { border-color: var(--accent); color: var(--accent); }
 
   .kpi-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 14px; margin-bottom: 34px;
+    gap: 14px; margin-bottom: 28px;
   }
   .kpi {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; padding: 18px 20px;
   }
-  .kpi .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
-  .kpi .val { font-size: 28px; font-weight: 800; margin: 4px 0; color: #f8fafc; }
+  .kpi .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .kpi .val { font-size: 27px; font-weight: 800; margin: 4px 0; color: #f8fafc; }
   .kpi .val.accent { color: var(--accent); }
   .kpi .val.green { color: var(--green); }
-  .kpi .val.amber { color: var(--amber); }
-  .kpi .sub { font-size: 13px; color: var(--muted); }
+  .kpi .sub { font-size: 12.5px; color: var(--muted); }
 
   section {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 18px; padding: 28px 30px; margin-bottom: 26px;
   }
   .sec-tag {
-    display: inline-block; font-size: 12px; font-weight: 700;
+    display: inline-block; font-size: 11.5px; font-weight: 700;
     color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px;
   }
-  h2 { font-size: 23px; font-weight: 700; margin-bottom: 14px; color: #f8fafc; }
-  h3 { font-size: 17px; font-weight: 700; margin: 18px 0 8px; color: #e2e8f0; }
+  h2 { font-size: 22px; font-weight: 700; margin-bottom: 14px; color: #f8fafc; }
+  h3 { font-size: 17px; font-weight: 700; margin: 20px 0 8px; color: #e2e8f0; }
   p { margin-bottom: 12px; color: #cbd5e1; }
   .highlight {
     background: rgba(56, 189, 248, 0.08);
     border-left: 3px solid var(--accent);
     padding: 14px 18px; border-radius: 0 10px 10px 0;
-    margin: 16px 0; color: #e2e8f0; font-size: 15px;
+    margin: 16px 0; color: #e2e8f0; font-size: 14.5px;
   }
   .highlight.green { background: rgba(52, 211, 153, 0.08); border-left-color: var(--green); }
   .highlight.amber { background: rgba(251, 191, 36, 0.08); border-left-color: var(--amber); }
@@ -102,13 +108,13 @@
     border-radius: 14px; padding: 18px 20px;
   }
   .card h4 { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: #f8fafc; }
-  .card p { font-size: 14px; margin-bottom: 0; color: #cbd5e1; }
+  .card p { font-size: 13.8px; margin-bottom: 0; color: #cbd5e1; }
 
   /* Interactive version switcher */
   .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 16px; }
   .tab-btn {
     background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
-    padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px;
+    padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13.5px;
     transition: all 0.18s ease;
   }
   .tab-btn:hover { border-color: var(--accent); color: #f8fafc; }
@@ -117,17 +123,17 @@
     background: #0d1426; border: 1px solid var(--border); border-radius: 14px; padding: 20px;
   }
   .bar-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
-  .bar-label { width: 130px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
+  .bar-label { width: 138px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
   .bar-track { flex: 1; height: 22px; background: rgba(255,255,255,0.06); border-radius: 6px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 6px; transition: width 0.45s cubic-bezier(.22,1,.36,1); display: flex; align-items: center; padding-left: 10px; font-size: 12px; font-weight: 700; color: #0b1020; }
 
-  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; }
   th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; }
   tr.ours { background: rgba(52, 211, 153, 0.10); }
   tr.ours td { color: #ecfdf5; font-weight: 600; }
   code {
-    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em;
     background: rgba(148, 163, 184, 0.14); padding: 2px 6px; border-radius: 5px; color: #7dd3fc;
   }
   footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 28px; }
@@ -138,51 +144,56 @@
 
   <header>
     <div class="badge-row">
-      <span class="badge">Post-Quantum Cryptography</span>
+      <span class="badge">Post-Quantum Cryptanalysis</span>
       <span class="badge purple">L2-Sized Cooperative CUDA</span>
-      <span class="badge green">TII-235 (mt = 144) PASS ✓</span>
+      <span class="badge green">4/4 Verified · Up to mt = 144 ✓</span>
     </div>
-    <h1>顶破 128-bit 硬件极限：攻破 TII-235 (mt = 144)<br/>L2 缓存导向的 GPU 加速 McEliece 密钥恢复</h1>
-    <p>一页直觉图解：McEliece 二元 Goppa 码是什么？我们如何在 MiniMax Primal-Shortened ISD 框架上做出 4 项算法+硬件协同创新？以及我们如何仅用 4.30 小时（~$79 美元，10× Modal L40S）攻破全球未解的 <code>TII-235</code>（截至 2026-11-22 公开最高余维 <code>mt = 144</code>，官方校验与纯 Python 双重 PASS）。</p>
+    <h1>Packing Stern into L2:<br/>GPU-Accelerated Binary Goppa Key Recovery</h1>
+    <p>An intuitive visual guide to how we moved high-codimension Primal-Shortened ISD from multi-thousand-core CPU clusters to a handful of serverless GPUs — recovering equivalent private keys across four TII McEliece Track-2 challenges up to <code>TII-235</code> (<code>mt = 144</code>, 127 of 128 packed bits) for ~$79.</p>
+    <div class="header-links">
+      <a href="https://github.com/raullenchai/tii-mceliece-gpu">GitHub Repo</a>
+      <a href="paper/main.pdf">Read Paper (PDF)</a>
+      <a href="codewords/RUN_MANIFEST.md">Run Manifest</a>
+    </div>
   </header>
 
   <div class="kpi-grid">
     <div class="kpi">
-      <div class="label">已验签最高余维</div>
+      <div class="label">Highest Verified Codimension</div>
       <div class="val green">mt = 144 ✓</div>
-      <div class="sub">TII-235 官方校验 1 (PASS) · 顶死 128-bit 上限</div>
+      <div class="sub">TII-235 · 127/128 packed bits · check_solution = 1</div>
     </div>
     <div class="kpi">
-      <div class="label">TII-235 实测战绩</div>
-      <div class="val accent">4.30 小时</div>
-      <div class="sub">39.62 L40S-h (~$79) · 40,353 码字 + 17.97s 升维</div>
+      <div class="label">TII-235 Wall-Clock &amp; Cost</div>
+      <div class="val accent">4.30 hours</div>
+      <div class="sub">10× Modal L40S · 39.62 GPU-h (~$79) · 17.97s lift</div>
     </div>
     <div class="kpi">
-      <div class="label">已通关挑战赛题</div>
-      <div class="val">4 题全 PASS</div>
+      <div class="label">TII-228 Head-to-Head</div>
+      <div class="val green">18.9 min ✓</div>
+      <div class="sub">8× L40S (2.15 GPU-h, ~$4.30) · 3.0× faster than EPYC</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Full Verified Sweep</div>
+      <div class="val">4/4 PASS</div>
       <div class="sub">245 (108) · 228 (126) · 237 (135) · 235 (144)</div>
-    </div>
-    <div class="kpi">
-      <div class="label">TII-228 同实例对决</div>
-      <div class="val green">18.9 分钟 ✓</div>
-      <div class="sub">8× L40S (2.15h / ~$4.3) 3× 快于 2,463 EPYC 核时</div>
     </div>
   </div>
 
-  <div class="highlight" style="margin-bottom:26px; border-left-color: var(--green); background: rgba(16,185,129,0.10);">
-    <strong>🏆 4 题全满贯达成（2026-11-22）：<code>TII-245 / 228 / 237 / 235</code> 全部官方与纯 Python 双重验签 PASS！</strong><br/>
-    • <strong><code>TII-245</code> (<code>mt=108</code>)</strong>：1× Colab L4 `19.6 min` + `9.78 s` 升维，<code>check=1</code><br/>
-    • <strong><code>TII-228</code> (<code>mt=126</code>)</strong>：8× Modal L40S <strong><code>18.9 min</code></strong>（`2.15 GPU-h / ~$4.30`，37,084 码字 + 24.64s 升维，<code>check=1</code>）——同实例墙钟 <strong>3.0× 快于</strong> MiniMax `2,048–5,120` 核 EPYC 集群（`57.1 min / 2,463 核时`）<br/>
-    • <strong><code>TII-237</code> (<code>mt=135</code>)</strong>：Colab L4 `22.1 GPU-h`，29,742 码字 + 23.23s 升维，<code>check=1</code><br/>
-    • <strong><code>TII-235</code> (<code>mt=144</code>，顶死 128-bit 硬件极限)</strong>：10× Modal L40S <strong><code>4.30 h</code></strong>（`39.62 GPU-h / ~$79`，40,353 码字 + <strong><code>17.97 s</code> 升维</strong>，<code>check=1</code>）
+  <div class="highlight green">
+    <strong>Verified 4-Instance Sweep (All Pass Official TII SageMath Checker &amp; Pure-Python Verifier):</strong><br/>
+    • <strong><code>TII-245</code> (<code>mt=108</code>)</strong>: 1× Colab L4 in <strong>19.6 min</strong> (1,175.5s harvest + 9.78s lift, 24,500 words, ~1.91× target-normalized over 64-core Xeon)<br/>
+    • <strong><code>TII-228</code> (<code>mt=126</code>)</strong>: 8× Modal L40S in <strong>18.9 min</strong> (2.15 GPU-h / ~$4.30, 37,084 words + 24.64s lift) — <strong>3.0× faster</strong> wall-clock than MiniMax's 2,048–5,120-core EPYC run (57.1 min / 2,463 core-hours)<br/>
+    • <strong><code>TII-237</code> (<code>mt=135</code>)</strong>: Colab L4 workers in <strong>~22.1 GPU-h</strong> (29,742 words + 23.23s lift)<br/>
+    • <strong><code>TII-235</code> (<code>mt=144</code>)</strong>: 10× Modal L40S in <strong>4.30 h</strong> (39.62 GPU-h / ~$79, 40,353 words + <strong>17.97s lift</strong>) — 1 bit below our 128-bit lossless packing ceiling
   </div>
 
   <!-- SECTION 1 -->
   <section>
-    <span class="sec-tag">Part 01 · 它原来是什么？干嘛用的？</span>
-    <h2>1. 屹立近 50 年的抗量子密码：McEliece 与二元 Goppa 码</h2>
-    <p>现在互联网广泛使用的 RSA 和椭圆曲线（ECC）在量子计算机面前会被 Shor 算法直接击穿。早在 1978 年，Robert McEliece 就提出了一种完全不同路线的公钥密码——<strong>基于纠错码的 McEliece 密码</strong>（其现代方案 <strong>Classic McEliece</strong> 是 NIST 后量子密码第三轮决赛与第四轮候选方案；NIST 于 2025 年 3 月最终选定 HQC）。</p>
-    <p>它的核心直觉非常像<strong>“把一把精密几何锁芯伪装成一团随机乱码”</strong>：</p>
+    <span class="sec-tag">Part 01 · The Problem in Plain English</span>
+    <h2>1. McEliece &amp; Binary Goppa Codes: A Geometric Lock Disguised as Noise</h2>
+    <p>Unlike RSA and elliptic curves (which Shor's algorithm breaks on a quantum computer), the <strong>McEliece cryptosystem</strong> (1978) hides a structured binary Goppa error-correcting code behind a scrambled binary parity-check matrix <code>H_pub</code>. Classic McEliece reached Round 4 of NIST's post-quantum standardization (NIST selected HQC in March 2025) and remains one of the most conservative post-quantum designs.</p>
+    <p>The intuition is simple: <strong>take a precision algebraic lock and scramble its rows so it looks like random 0/1 noise</strong>.</p>
 
     <div class="diagram-box">
       <svg viewBox="0 0 920 230" xmlns="http://www.w3.org/2000/svg">
@@ -198,142 +209,67 @@
           </marker>
         </defs>
         <!-- Secret Key -->
-        <rect x="20" y="30" width="230" height="120" rx="14" fill="#172542" stroke="#34d399" stroke-width="1.8"/>
-        <text x="135" y="58" text-anchor="middle" fill="#34d399" font-size="14" font-weight="700">私钥 Secret Key (g, L)</text>
-        <text x="135" y="84" text-anchor="middle" fill="#e2e8f0" font-size="13">• t 次不可约多项式 g(X)</text>
-        <text x="135" y="106" text-anchor="middle" fill="#e2e8f0" font-size="13">• n 个有限域支撑点 L</text>
-        <text x="135" y="132" text-anchor="middle" fill="#94a3b8" font-size="11.5">拥有它 = 毫秒级快速纠错解密</text>
+        <rect x="20" y="30" width="235" height="120" rx="14" fill="#172542" stroke="#34d399" stroke-width="1.8"/>
+        <text x="137" y="58" text-anchor="middle" fill="#34d399" font-size="14" font-weight="700">Secret Key (g, L)</text>
+        <text x="137" y="84" text-anchor="middle" fill="#e2e8f0" font-size="12.5">• Degree-t polynomial g(X)</text>
+        <text x="137" y="106" text-anchor="middle" fill="#e2e8f0" font-size="12.5">• n field support points L</text>
+        <text x="137" y="132" text-anchor="middle" fill="#94a3b8" font-size="11.5">Enables fast algebraic decoding</text>
 
         <!-- Arrow 1 -->
-        <line x1="250" y1="90" x2="335" y2="90" stroke="#38bdf8" stroke-width="2.2" marker-end="url(#arr)"/>
-        <text x="292" y="76" text-anchor="middle" fill="#7dd3fc" font-size="11.5" font-weight="600">展开 + 高斯消元</text>
-        <text x="292" y="108" text-anchor="middle" fill="#94a3b8" font-size="11">抹去表面结构</text>
+        <line x1="255" y1="90" x2="335" y2="90" stroke="#38bdf8" stroke-width="2.2" marker-end="url(#arr)"/>
+        <text x="295" y="76" text-anchor="middle" fill="#7dd3fc" font-size="11.5" font-weight="600">Expand + RREF</text>
+        <text x="295" y="108" text-anchor="middle" fill="#94a3b8" font-size="11">Hides structure</text>
 
         <!-- Public Key -->
-        <rect x="342" y="30" width="245" height="120" rx="14" fill="#172542" stroke="#38bdf8" stroke-width="1.8"/>
-        <text x="464" y="58" text-anchor="middle" fill="#38bdf8" font-size="14" font-weight="700">公钥 Public Key H_pub</text>
-        <text x="464" y="84" text-anchor="middle" fill="#e2e8f0" font-size="13">mt × n 的 0/1 校验矩阵</text>
-        <text x="464" y="106" text-anchor="middle" fill="#cbd5e1" font-size="12">(例如 TII-237: 135 × 500)</text>
-        <text x="464" y="132" text-anchor="middle" fill="#94a3b8" font-size="11.5">外人看来像毫无规律的随机码</text>
+        <rect x="342" y="30" width="248" height="120" rx="14" fill="#172542" stroke="#38bdf8" stroke-width="1.8"/>
+        <text x="466" y="58" text-anchor="middle" fill="#38bdf8" font-size="14" font-weight="700">Public Key H_pub</text>
+        <text x="466" y="84" text-anchor="middle" fill="#e2e8f0" font-size="12.5">mt × n binary parity-check</text>
+        <text x="466" y="106" text-anchor="middle" fill="#cbd5e1" font-size="12">(e.g., TII-235: 144 × 502)</text>
+        <text x="466" y="132" text-anchor="middle" fill="#94a3b8" font-size="11.5">Looks like a random linear code</text>
 
         <!-- Arrow 2 -->
-        <line x1="587" y1="90" x2="670" y2="90" stroke="#34d399" stroke-width="2.2" marker-end="url(#arrG)"/>
-        <text x="628" y="76" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="600">加密 Encrypt</text>
-        <text x="628" y="108" text-anchor="middle" fill="#94a3b8" font-size="11">撒 t 个随机错</text>
+        <line x1="590" y1="90" x2="670" y2="90" stroke="#34d399" stroke-width="2.2" marker-end="url(#arrG)"/>
+        <text x="630" y="76" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="600">Encrypt</text>
+        <text x="630" y="108" text-anchor="middle" fill="#94a3b8" font-size="11">Add t errors</text>
 
         <!-- Ciphertext -->
-        <rect x="678" y="30" width="220" height="120" rx="14" fill="#172542" stroke="#a78bfa" stroke-width="1.8"/>
-        <text x="788" y="58" text-anchor="middle" fill="#c4b5fd" font-size="14" font-weight="700">密文 / 抗量子安全</text>
-        <text x="788" y="86" text-anchor="middle" fill="#e2e8f0" font-size="13">只有知道 (g, L) 才能</text>
-        <text x="788" y="108" text-anchor="middle" fill="#e2e8f0" font-size="13">高效去掉随机错误</text>
-        <text x="788" y="132" text-anchor="middle" fill="#94a3b8" font-size="11.5">抵御经典与量子计算机攻击</text>
+        <rect x="678" y="30" width="222" height="120" rx="14" fill="#172542" stroke="#a78bfa" stroke-width="1.8"/>
+        <text x="789" y="58" text-anchor="middle" fill="#c4b5fd" font-size="14" font-weight="700">Post-Quantum Security</text>
+        <text x="789" y="84" text-anchor="middle" fill="#e2e8f0" font-size="12.5">Only (g, L) removes</text>
+        <text x="789" y="106" text-anchor="middle" fill="#e2e8f0" font-size="12.5">the t errors efficiently</text>
+        <text x="789" y="132" text-anchor="middle" fill="#94a3b8" font-size="11.5">Resists classical &amp; quantum attacks</text>
 
         <!-- Attack arrow underneath -->
-        <path d="M 464 152 C 464 205, 135 205, 135 156" fill="none" stroke="#fb7185" stroke-width="2.4" stroke-dasharray="6,4" marker-end="url(#arrR)"/>
-        <rect x="195" y="182" width="215" height="28" rx="8" fill="#2a1423" stroke="#fb7185" stroke-width="1.2"/>
-        <text x="302" y="201" text-anchor="middle" fill="#fda4af" font-size="12.5" font-weight="700">我们的目标：TII Track-2 密钥恢复！</text>
+        <path d="M 466 152 C 466 205, 137 205, 137 156" fill="none" stroke="#fb7185" stroke-width="2.4" stroke-dasharray="6,4" marker-end="url(#arrR)"/>
+        <rect x="180" y="182" width="248" height="28" rx="8" fill="#2a1423" stroke="#fb7185" stroke-width="1.2"/>
+        <text x="304" y="201" text-anchor="middle" fill="#fda4af" font-size="12" font-weight="700">Goal: TII Track-2 Key Recovery!</text>
       </svg>
     </div>
 
     <div class="highlight">
-      <strong>什么是 TII McEliece Track-2 挑战赛？</strong><br/>
-      阿联酋技术创新研究院（TII）公开了 204 个非玩具规模的 McEliece 公钥矩阵（另含 2 个测试用小实例），作为全球密码学界的公开擂台：<strong>只给你公开的 0/1 矩阵 <code>H_pub</code>，看你能否反推出等价私钥 <code>(g, L)</code></strong>，并用官方验证脚本 <code>check_solution_track2.sage</code> 验算返回 <code>1</code>（且我们提供了零依赖纯 Python 独立验证脚本）。
+      <strong>What is the TII McEliece Track-2 Challenge?</strong><br/>
+      The Technology Innovation Institute (TII) published 204 non-toy McEliece public-key recovery instances (plus 2 toy checks): given only <code>H_pub</code>, recover an equivalent private key <code>(g, L)</code> whose Goppa parity-check matrix has the exact same row space and passes <code>check_solution_track2.sage</code> with output <code>1</code>.
     </div>
   </section>
 
-  <!-- SECTION 2 -->
+  <!-- SECTION 2: BOSS-FIGHT ESCALATION LADDER -->
   <section>
-    <span class="sec-tag">Part 02 · 我们拿到了什么级别的效果？</span>
-    <h2>2. 2026 密码学竞速前沿：攻破 mt = 135 里程碑</h2>
-    <p>2026 年是 Goppa 码密钥恢复快速推进的一年：CRYPTO 2026、Weis、Saarinen（8× NVIDIA GH200，最终两轮 Krylov 序列耗 27.2 GPU-h）以及刚发布的 MiniMax（Route A + HOVER 共解 94 题，在 2,048–10,240 核 AMD EPYC 集群上达到 <code>mt=126</code>）轮番推进边界。余维 <code>mt = m × t</code> 是重要的参数里程碑（具体难度由完整参数元组 <code>(n, m, t, n')</code> 共同决定）。</p>
+    <span class="sec-tag">Part 02 · The 2026 Escalation Ladder ("Boss-Fight Progression")</span>
+    <h2>2. Climbing the Ladder: From mt = 63 to mt = 144 (and the Wall Beyond)</h2>
+    <p>One thing trips up almost every newcomer to TII Track-2: <strong>why is <code>TII-235</code> much harder than <code>TII-237</code> even though 235 &lt; 237?</strong><br/>
+    TII's challenge IDs were estimated in 2023 under older attacks. Under 2026 <strong>Primal-Shortened ISD</strong>, the true "boss level" is governed primarily by the <strong>codimension <code>mt = m × t</code></strong> (each +9 bits multiplies search space by roughly 4–5×) and the shortened dimension <code>k' = n' - mt</code>.</p>
 
     <div class="diagram-box">
-      <svg viewBox="0 0 920 265" xmlns="http://www.w3.org/2000/svg">
-        <text x="16" y="24" fill="#e2e8f0" font-size="14" font-weight="700">2026 全球 TII McEliece Track-2 最高攻破余维 (mt = m × t) 进度条</text>
-        <!-- Row 1 -->
-        <text x="16" y="64" fill="#cbd5e1" font-size="13">CRYPTO 2026 (Bardet 等) · TII-210</text>
-        <rect x="295" y="48" width="245" height="22" rx="6" fill="#334155"/>
-        <text x="550" y="64" fill="#94a3b8" font-size="12.5">mt = 63 (Pfaffian)</text>
-        <!-- Row 2 -->
-        <text x="16" y="102" fill="#cbd5e1" font-size="13">Anthropic (Weis) · TII-253</text>
-        <rect x="295" y="86" width="280" height="22" rx="6" fill="#475569"/>
-        <text x="585" y="102" fill="#94a3b8" font-size="12.5">mt = 72 (GIJS / Hold-out)</text>
-        <!-- Row 3 -->
-        <text x="16" y="140" fill="#cbd5e1" font-size="13">Saarinen (8×GH200, 27.2 GPU-h) · TII-254</text>
-        <rect x="295" y="124" width="374" height="22" rx="6" fill="#6366f1"/>
-        <text x="679" y="140" fill="#c7d2fe" font-size="12.5">mt = 96 (2-Anchor) / 110 (HOVER)</text>
-        <!-- Row 4 -->
-        <text x="16" y="178" fill="#cbd5e1" font-size="13">MiniMax (2,048–5,120 核) · TII-228</text>
-        <rect x="295" y="162" width="490" height="22" rx="6" fill="#38bdf8"/>
-        <text x="795" y="178" fill="#7dd3fc" font-size="12.5" font-weight="600">mt = 126 (2,463 核时)</text>
-        <!-- Row 5 (OURS) -->
-        <text x="16" y="220" fill="#34d399" font-size="13.5" font-weight="700">★ 我们 (~22.1 Colab GPU-h) · TII-237</text>
-        <rect x="295" y="202" width="525" height="26" rx="6" fill="url(#ourGrad)"/>
-        <defs>
-          <linearGradient id="ourGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#10b981"/>
-            <stop offset="100%" stop-color="#34d399"/>
-          </linearGradient>
-        </defs>
-        <text x="830" y="220" fill="#34d399" font-size="13.5" font-weight="800">mt = 135 验签通过</text>
-        <text x="295" y="252" fill="#64748b" font-size="11.5">注：截至 2026-11-22 已知公开 Track-2 最高余维里程碑（尚未获 TII 官方榜单确认）；不同实例难度由完整参数 (n, m, t, n') 决定。</text>
-      </svg>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>目标实例</th>
-          <th>参数 (n, m, t)</th>
-          <th>余维 mt</th>
-          <th>参考基准 / 此前公开状态</th>
-          <th>我们的实测成绩</th>
-          <th>官方校验</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>TII-245</strong>（对照基准）</td>
-          <td>(493, 9, 12)</td>
-          <td>108</td>
-          <td>MiniMax 64 核 Xeon：<strong>2,500s</strong> 采样（26,352 字）/ 2,510s 端到端</td>
-          <td><strong>1× L4：1,175.5s</strong> 采样（24,500 字）+ 9.78s 升维（端到端 <strong>2.12×</strong>，归一化 <strong>~1.9×</strong>）</td>
-          <td><span style="color:var(--green);font-weight:700">1 (PASS)</span></td>
-        </tr>
-        <tr class="ours">
-          <td>★ TII-237</td>
-          <td>(500, 9, 15)</td>
-          <td>135</td>
-          <td>截至 2026-11-22 未见公开解（此前最高 mt = 126）</td>
-          <td>Colab GPU 约 <strong>22.1 GPU-h</strong>（~7.0×10⁸ 迭代）收齐 29,742 码字 + <strong>23.23s 代数升维</strong></td>
-          <td><span style="color:var(--green);font-weight:800">1 (PASS)</span></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="highlight amber">
-      <strong>科学边界声明：</strong>Classic McEliece 候选参数集的余维高达 <code>mt ≥ 768</code>（<code>m=12, t=64</code> 起步），启发式 Primal-Shortened ISD 攻击复杂度随 <code>mt</code> 呈指数增长。本实验<strong>并不构成</strong>对 Classic McEliece 候选参数集的实际威胁。
-    </div>
-  </section>
-
-  <!-- SECTION 2.5: ESCALATION LADDER & ENDGAME ROADMAP -->
-  <section>
-    <span class="sec-tag">Part 02.5 · 打怪升级全景路线图：谁打到哪？我们去哪？终点在哪？</span>
-    <h2>2.5 完整“打怪升级”天梯：<code>245 → 228 → 237 → 235</code> 与终极边界</h2>
-    <p>先解答一个最容易让人困惑的问题：<strong>为什么编号 <code>TII-235</code> 比 <code>TII-237</code> 小，反而比它难得多？</strong><br/>
-    因为 TII 编号是 2023 年官方按<strong>老式经典攻击</strong>估的比特安全度（原本意为数字越大越难）；但在 2026 年的 <strong>Primal-Shortened ISD</strong> 面前，真正决定副本难度的“怪兽等级”是 <strong>余维 <code>mt = m × t</code></strong>（每加 9 比特，搜索空间翻 4–5 倍）以及<strong>打孔数</strong>（<code>2^m - n</code>，打孔多时纯代数 HOVER 会失效）。</p>
-
-    <div class="diagram-box">
-      <svg viewBox="0 0 920 330" xmlns="http://www.w3.org/2000/svg">
-        <text x="16" y="24" fill="#e2e8f0" font-size="14" font-weight="700">二元 Goppa 码密钥恢复“打怪升级”阶梯曲线（横轴：攻破阶段与余维 mt · 纵轴：对数算力门槛）</text>
+      <svg viewBox="0 0 920 332" xmlns="http://www.w3.org/2000/svg">
+        <text x="16" y="24" fill="#e2e8f0" font-size="14" font-weight="700">2026 TII McEliece Track-2 Key-Recovery Escalation Ladder (Qualitative Progression by Codimension mt)</text>
 
         <!-- Grid baseline -->
         <line x1="45" y1="275" x2="895" y2="275" stroke="#334155" stroke-width="1.5"/>
         <line x1="45" y1="45" x2="45" y2="275" stroke="#334155" stroke-width="1.5"/>
-        <text x="38" y="60" text-anchor="end" fill="#64748b" font-size="10.5">指数墙</text>
-        <text x="38" y="130" text-anchor="end" fill="#64748b" font-size="10.5">千卡时+</text>
-        <text x="38" y="195" text-anchor="end" fill="#64748b" font-size="10.5">百卡时</text>
-        <text x="38" y="255" text-anchor="end" fill="#64748b" font-size="10.5">数卡时</text>
+        <text x="38" y="60" text-anchor="end" fill="#64748b" font-size="10.5">Exp. Wall</text>
+        <text x="38" y="130" text-anchor="end" fill="#64748b" font-size="10.5">100s+ GPU-h</text>
+        <text x="38" y="195" text-anchor="end" fill="#64748b" font-size="10.5">10s GPU-h</text>
+        <text x="38" y="255" text-anchor="end" fill="#64748b" font-size="10.5">Minutes</text>
 
         <!-- Curve path -->
         <path d="M 85 260 L 195 242 L 315 224 L 435 198 L 560 158 L 690 105 L 835 58"
@@ -343,213 +279,221 @@
         <circle cx="85" cy="260" r="7" fill="#64748b"/>
         <text x="85" y="294" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">Lv.1 · mt=63</text>
         <text x="85" y="310" text-anchor="middle" fill="#64748b" font-size="10">CRYPTO'26 / Hemmert</text>
-        <text x="85" y="246" text-anchor="middle" fill="#cbd5e1" font-size="10.5">TII-210/248</text>
+        <text x="85" y="246" text-anchor="middle" fill="#cbd5e1" font-size="10.5">TII-210 / 248</text>
 
         <!-- Lv 2: mt=96-110 -->
         <circle cx="195" cy="242" r="7" fill="#818cf8"/>
         <text x="195" y="294" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700">Lv.2 · mt=96–110</text>
-        <text x="195" y="310" text-anchor="middle" fill="#64748b" font-size="10">Saarinen / 我们 245</text>
+        <text x="195" y="310" text-anchor="middle" fill="#64748b" font-size="10">Saarinen / Ours (245)</text>
         <text x="195" y="226" text-anchor="middle" fill="#c7d2fe" font-size="10.5">TII-254 / 252 / 245</text>
 
         <!-- Lv 3: mt=126 (TII-228) -->
-        <circle cx="315" cy="224" r="8" fill="#38bdf8"/>
-        <text x="315" y="294" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700">Lv.3 · mt=126</text>
-        <text x="315" y="310" text-anchor="middle" fill="#7dd3fc" font-size="10">MiniMax 2,463核时</text>
-        <text x="315" y="324" text-anchor="middle" fill="#34d399" font-size="10">8×L40S ~12m 冲刺中!</text>
+        <circle cx="315" cy="224" r="9" fill="#38bdf8" stroke="#bae6fd" stroke-width="1.5"/>
+        <text x="315" y="294" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700">Lv.3 · mt=126 ✓</text>
+        <text x="315" y="310" text-anchor="middle" fill="#7dd3fc" font-size="10">MiniMax: 57.1m EPYC</text>
+        <text x="315" y="324" text-anchor="middle" fill="#34d399" font-size="10">Ours: 18.9m (8×L40S)</text>
         <text x="315" y="206" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700">TII-228</text>
 
         <!-- Lv 4: mt=135 (TII-237 DONE) -->
         <circle cx="435" cy="198" r="10" fill="#10b981" stroke="#a7f3d0" stroke-width="2"/>
         <text x="435" y="294" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="800">Lv.4 · mt=135 ✓</text>
-        <text x="435" y="310" text-anchor="middle" fill="#34d399" font-size="10">我们已攻破 (22.1h)</text>
-        <rect x="386" y="164" width="98" height="22" rx="6" fill="#064e3b" stroke="#34d399"/>
-        <text x="435" y="179" text-anchor="middle" fill="#a7f3d0" font-size="11" font-weight="700">TII-237 已破</text>
+        <text x="435" y="310" text-anchor="middle" fill="#34d399" font-size="10">Solved (22.1 L4-h)</text>
+        <rect x="378" y="164" width="114" height="22" rx="6" fill="#064e3b" stroke="#34d399"/>
+        <text x="435" y="179" text-anchor="middle" fill="#a7f3d0" font-size="11" font-weight="700">TII-237 Solved</text>
 
         <!-- Lv 5: mt=144 (TII-235 DONE!) -->
         <circle cx="560" cy="158" r="12" fill="#10b981" stroke="#a7f3d0" stroke-width="2.5"/>
         <text x="560" y="294" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="800">Lv.5 · mt=144 ✓★</text>
-        <text x="560" y="310" text-anchor="middle" fill="#34d399" font-size="10">已攻破! 4.30h / ~$79</text>
-        <text x="560" y="324" text-anchor="middle" fill="#a7f3d0" font-size="10">顶死 128-bit 极限!</text>
-        <rect x="494" y="116" width="132" height="26" rx="6" fill="#064e3b" stroke="#34d399" stroke-width="1.8"/>
-        <text x="560" y="133" text-anchor="middle" fill="#a7f3d0" font-size="11.5" font-weight="800">TII-235 已破 PASS!</text>
+        <text x="560" y="310" text-anchor="middle" fill="#34d399" font-size="10">4.30h · 39.6 L40S-h</text>
+        <text x="560" y="324" text-anchor="middle" fill="#a7f3d0" font-size="10">127/128 packed bits</text>
+        <rect x="492" y="116" width="136" height="26" rx="6" fill="#064e3b" stroke="#34d399" stroke-width="1.8"/>
+        <text x="560" y="133" text-anchor="middle" fill="#a7f3d0" font-size="11.5" font-weight="800">TII-235 Solved!</text>
 
         <!-- Lv 6: mt=153-160 (Cliff) -->
         <circle cx="690" cy="105" r="8" fill="#fb7185"/>
         <text x="690" y="294" text-anchor="middle" fill="#fda4af" font-size="11" font-weight="700">Lv.6 · mt=153–160</text>
-        <text x="690" y="310" text-anchor="middle" fill="#94a3b8" font-size="10">撞穿 128-bit 墙</text>
-        <text x="690" y="324" text-anchor="middle" fill="#94a3b8" font-size="10">TII-185(~500h) / 14万h</text>
-        <text x="690" y="88" text-anchor="middle" fill="#fda4af" font-size="11" font-weight="700">算力断崖</text>
+        <text x="690" y="310" text-anchor="middle" fill="#94a3b8" font-size="10">Past 128-bit ceiling</text>
+        <text x="690" y="324" text-anchor="middle" fill="#94a3b8" font-size="10">TII-185 (~180 L40S-h est.)</text>
+        <text x="690" y="88" text-anchor="middle" fill="#fda4af" font-size="11" font-weight="700">Next Frontier</text>
 
         <!-- Lv 7: Classic McEliece (Endgame) -->
         <circle cx="835" cy="58" r="9" fill="#a78bfa" stroke="#ddd6fe" stroke-width="2"/>
-        <text x="835" y="294" text-anchor="middle" fill="#c4b5fd" font-size="11.5" font-weight="800">终极 · mt ≥ 768</text>
+        <text x="835" y="294" text-anchor="middle" fill="#c4b5fd" font-size="11.5" font-weight="800">Endgame · mt ≥ 768</text>
         <text x="835" y="310" text-anchor="middle" fill="#94a3b8" font-size="10">Classic McEliece</text>
-        <text x="835" y="324" text-anchor="middle" fill="#94a3b8" font-size="10">mceliece348864 起步</text>
-        <rect x="768" y="32" width="134" height="20" rx="5" fill="#2e1065" stroke="#a78bfa"/>
-        <text x="835" y="46" text-anchor="middle" fill="#e9d5ff" font-size="10.5" font-weight="700">工业级后量子安全边际</text>
+        <text x="835" y="324" text-anchor="middle" fill="#94a3b8" font-size="10">mceliece348864+</text>
+        <rect x="765" y="32" width="140" height="20" rx="5" fill="#2e1065" stroke="#a78bfa"/>
+        <text x="835" y="46" text-anchor="middle" fill="#e9d5ff" font-size="10.5" font-weight="700">Far Beyond Reach</text>
       </svg>
     </div>
 
     <table>
       <thead>
         <tr>
-          <th>层级</th>
-          <th>代表实例 &amp; 参数</th>
-          <th>当前保持者 / 状态</th>
-          <th>我们的进度与战略意义</th>
+          <th>Tier</th>
+          <th>Instance &amp; (n, m, t)</th>
+          <th>mt</th>
+          <th>Prior Baseline / Status</th>
+          <th>Our Verified GPU Result</th>
+          <th>Check</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><strong>Lv.1–2</strong><br/><code>mt=63–110</code></td>
-          <td><code>TII-210/248/253/254/252</code><br/><code>TII-245</code> (493, 9, 12)</td>
-          <td>Bardet / Hemmert / Weis / Saarinen（8×GH200）/ MiniMax（64核 Xeon 41.7m）</td>
-          <td><span style="color:var(--green);font-weight:700">已完成对照</span>：1×L4 19.6 分钟破 <code>TII-245</code>（归一化快 1.91×）</td>
+          <td><strong>Control</strong></td>
+          <td><code>TII-245</code> (493, 9, 12)</td>
+          <td>108</td>
+          <td>MiniMax 64-core Xeon: 2,510s (44.6 core-h)</td>
+          <td><strong>1× L4: 19.6 min</strong> (1,185.3s total · ~1.91× normalized)</td>
+          <td><span style="color:var(--green);font-weight:700">1 (PASS)</span></td>
         </tr>
         <tr>
-          <td><strong>Lv.3</strong><br/><code>mt=126</code></td>
-          <td><code>TII-228</code> (500, 9, 14)<br/><code>TII-250</code> (600, 10, 12, mt=120)</td>
-          <td>MiniMax（<code>TII-228</code>：2,048–5,120 核 EPYC 跑 57.1m / 2,463 核时）</td>
-          <td><span style="color:var(--accent);font-weight:700">正在 3×L4 实测</span>：用 GPU 最优窗 <code>n'=395</code>，预计 ~70 分钟（~3.6 卡时 / ~8 CU）完成同实例正面对决！</td>
+          <td><strong>Benchmark</strong></td>
+          <td><code>TII-228</code> (500, 9, 14)</td>
+          <td>126</td>
+          <td>MiniMax: 57.1 min (2,463 EPYC core-h)</td>
+          <td><strong>8× L40S: 18.9 min</strong> (2.15 GPU-h / ~$4.30 · <strong>3.0× faster</strong>)</td>
+          <td><span style="color:var(--green);font-weight:700">1 (PASS)</span></td>
         </tr>
         <tr class="ours">
-          <td><strong>Lv.4</strong><br/><code>mt=135</code></td>
-          <td><strong><code>TII-237</code></strong> (500, 9, 15)</td>
-          <td><strong>我们已攻破</strong>（截至 2026-11-22 已知公开最高余维）</td>
-          <td><span style="color:var(--green);font-weight:800">已验签 PASS (1)</span>：22.1 L4 卡时收齐 29,742 码字 + 23.23s 升维</td>
+          <td><strong>New ★</strong></td>
+          <td><code>TII-237</code> (500, 9, 15)</td>
+          <td>135</td>
+          <td>Previously undocumented</td>
+          <td><strong>Colab L4: ~22.1 GPU-h</strong> (29,742 words + 23.23s lift)</td>
+          <td><span style="color:var(--green);font-weight:800">1 (PASS)</span></td>
         </tr>
         <tr class="ours">
-          <td><strong style="color:var(--green)">Lv.5 ★✓</strong><br/><code>mt=144</code></td>
-          <td><strong><code>TII-235</code></strong> (502, 9, 16)<br/>打孔 10 位（HOVER 无效）</td>
-          <td><strong style="color:var(--green)">我们已攻破！</strong>（截至 2026-11-22 公开最高余维）</td>
-          <td><strong style="color:var(--green)">已验签 PASS (1)</strong>：Modal 10× L40S（<code>G=8, 71.4 MB &lt; 100.7 MB L2</code>）仅耗 <strong>4.30 小时</strong>（39.62 L40S-h / ~$79）收齐 <strong>40,353</strong> 条码字 + <strong>17.97 秒</strong>升维，顶死 128-bit 物理上限！</td>
+          <td><strong>New ★</strong></td>
+          <td><code>TII-235</code> (502, 9, 16)</td>
+          <td>144</td>
+          <td>Previously undocumented (10 punctures)</td>
+          <td><strong>10× L40S: 4.30 h</strong> (39.62 GPU-h / ~$79 · <strong>17.97s lift</strong>)</td>
+          <td><span style="color:var(--green);font-weight:800">1 (PASS)</span></td>
         </tr>
         <tr>
-          <td><strong>Lv.6</strong><br/><code>mt=153–160</code></td>
-          <td><code>TII-185</code> (511, 9, 17, mt=153)<br/><code>m=10, t=16</code> (mt=160)</td>
-          <td>全球未解（算力与架构双断崖）</td>
-          <td>撞穿 128-bit 打包墙：<code>TII-185</code> 用 ISD 需 ~350–500+ 卡时（且仅打孔 1 位，可能被 HOVER 捷径攻破，不划算）；<code>mt=160</code> 需 14 万+ 卡时。</td>
-        </tr>
-        <tr>
-          <td><strong>Lv.7 终极</strong><br/><code>mt ≥ 768</code></td>
-          <td>Classic McEliece 工业级参数<br/><code>mceliece348864</code> 起步</td>
-          <td>不可攻破（抗量子安全边际）</td>
-          <td><strong>最终目标</strong>：不是幻想靠暴力 ISD 打破 <code>mt≥768</code>，而是精确测绘现代 GPU 下的真实结构性攻击边界，并用“GPU 感知最优缩短窗口 <code>n'</code> + 硬件协同算法”推动代码密码学分析工具往前迈出一大步。</td>
+          <td><strong>Next</strong></td>
+          <td><code>TII-185</code> (511, 9, 17)</td>
+          <td>153</td>
+          <td>Exceeds 128-bit lossless format</td>
+          <td>Requires truncated 16B prefilter (<code>v5</code>, ~180 L40S-h est.)</td>
+          <td><span style="color:var(--rose)">Open</span></td>
         </tr>
       </tbody>
     </table>
+
+    <div class="highlight amber">
+      <strong>Security Margin Disclaimer:</strong> Proposed Classic McEliece parameter sets begin at <code>mt ≥ 768</code> (<code>m=12, t=64</code>). Because ISD search work scales exponentially with codimension, these experiments <strong>do not</strong> demonstrate practical key recovery against Classic McEliece.
+    </div>
   </section>
 
   <!-- SECTION 3 -->
   <section>
-    <span class="sec-tag">Part 03 · 我们的手法是怎么做的？</span>
-    <h2>3. 两段式接力：GPU 极速“挖线索” + 数十秒代数“一键破案”</h2>
-    <p>整套攻击直接建立在 MiniMax 开源的 <strong>Primal-Shortened ISD</strong> 数学框架、Mode-6 Stern 采样参数（<code>p=3+3, l=17</code>）与缩短窗口选择之上：<strong>高余维实例 >99% 的耗时都在码字采样阶段（例如 TII-245 占 99.18%），后半段代数恢复仅需 10–25 秒</strong>。</p>
+    <span class="sec-tag">Part 03 · How It Works Under the Hood</span>
+    <h2>3. Two-Stage Relay: L2-Resident GPU Harvesting + 10–25 s Algebraic Lift</h2>
+    <p>We keep MiniMax's algebraic polar-lifting algorithm and Mode-6 Stern parameters (<code>p = 3+3, l = 17</code>, 16 KB occupancy bitmap) untouched. Why? Because at <code>mt ≥ 108</code>, <strong>over 99% of total runtime is spent harvesting minimum odd-weight (<code>w = 2t + 1</code>) codewords</strong>, while SageMath finishes the algebraic lift in 10–25 seconds.</p>
 
     <div class="diagram-box">
-      <svg viewBox="0 0 920 215" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 920 205" xmlns="http://www.w3.org/2000/svg">
         <!-- Step 1 -->
-        <rect x="16" y="30" width="195" height="145" rx="12" fill="#172542" stroke="#38bdf8" stroke-width="1.6"/>
-        <text x="113" y="56" text-anchor="middle" fill="#7dd3fc" font-size="13" font-weight="700">① 切窗缩短 Shorten</text>
-        <text x="113" y="84" text-anchor="middle" fill="#e2e8f0" font-size="12">500 列 → 只取前 378 列</text>
-        <text x="113" y="108" text-anchor="middle" fill="#94a3b8" font-size="11.5">把未知二次特征维度</text>
-        <text x="113" y="126" text-anchor="middle" fill="#94a3b8" font-size="11.5">从 6.6 万砍到 2.94 万</text>
-        <text x="113" y="156" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="600">仍保留 ~6.5 万个极小码字</text>
+        <rect x="14" y="25" width="198" height="150" rx="12" fill="#152b3c" stroke="#34d399" stroke-width="1.8"/>
+        <text x="113" y="52" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">1. Optimal Shortening</text>
+        <text x="113" y="78" text-anchor="middle" fill="#e2e8f0" font-size="12">Widen prefix n' past CPU</text>
+        <text x="113" y="100" text-anchor="middle" fill="#cbd5e1" font-size="11.5">TII-228: 395 · TII-235: 425</text>
+        <text x="113" y="124" text-anchor="middle" fill="#fde68a" font-size="12" font-weight="700">−34% to −47% GPU-h</text>
+        <text x="113" y="154" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="700">Ours (Mod. 4)</text>
 
-        <line x1="211" y1="102" x2="245" y2="102" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="212" y1="100" x2="242" y2="100" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr)"/>
 
-        <!-- Step 2 (OUR CORE) -->
-        <rect x="252" y="20" width="270" height="165" rx="12" fill="#152b3c" stroke="#34d399" stroke-width="2.2"/>
-        <text x="387" y="46" text-anchor="middle" fill="#34d399" font-size="13.5" font-weight="800">② GPU 挖线索（我们的核心创新）</text>
-        <text x="387" y="72" text-anchor="middle" fill="#e2e8f0" font-size="12">L2-Cache 驻留 Stern–Dumer ISD</text>
-        <text x="387" y="96" text-anchor="middle" fill="#cbd5e1" font-size="11.5">在 135×378 零空间里疯狂搜寻</text>
-        <text x="387" y="116" text-anchor="middle" fill="#fde68a" font-size="12" font-weight="700">29,700 个重量恰好 = 31 的码字</text>
-        <text x="387" y="142" text-anchor="middle" fill="#94a3b8" font-size="11.5">2× L4 合计 18,950 次消元搜索/秒</text>
-        <text x="387" y="164" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="600">每条线索都在 CPU 验过 H·v = 0</text>
+        <!-- Step 2 -->
+        <rect x="249" y="25" width="232" height="150" rx="12" fill="#152b3c" stroke="#34d399" stroke-width="2.2"/>
+        <text x="365" y="52" text-anchor="middle" fill="#34d399" font-size="13" font-weight="800">2. L2-Sized GPU-ISD</text>
+        <text x="365" y="78" text-anchor="middle" fill="#e2e8f0" font-size="12">16B zero-index ulonglong2</text>
+        <text x="365" y="100" text-anchor="middle" fill="#cbd5e1" font-size="11.5">G ∈ {4, 8} L2-resident tables</text>
+        <text x="365" y="124" text-anchor="middle" fill="#fde68a" font-size="12" font-weight="700">64G batched full-SM k_sys</text>
+        <text x="365" y="154" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="700">Ours (Mods. 1–3)</text>
 
-        <line x1="522" y1="102" x2="556" y2="102" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="481" y1="100" x2="511" y2="100" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr)"/>
 
         <!-- Step 3 -->
-        <rect x="563" y="30" width="160" height="145" rx="12" fill="#172542" stroke="#a78bfa" stroke-width="1.6"/>
-        <text x="643" y="56" text-anchor="middle" fill="#c4b5fd" font-size="13" font-weight="700">③ 代数升维 Lift</text>
-        <text x="643" y="84" text-anchor="middle" fill="#e2e8f0" font-size="12">29,700 条线索</text>
-        <text x="643" y="106" text-anchor="middle" fill="#e2e8f0" font-size="12">解出 10 维关系商空间</text>
-        <text x="643" y="130" text-anchor="middle" fill="#94a3b8" font-size="11.5">还原 g(X) 和前 378 点</text>
-        <text x="643" y="156" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">仅需 ~10–20 秒！</text>
+        <rect x="518" y="25" width="188" height="150" rx="12" fill="#172542" stroke="#38bdf8" stroke-width="1.6"/>
+        <text x="612" y="52" text-anchor="middle" fill="#7dd3fc" font-size="13" font-weight="700">3. Polar Lifting</text>
+        <text x="612" y="78" text-anchor="middle" fill="#e2e8f0" font-size="12">GF(2) M4RI on F(d) cols</text>
+        <text x="612" y="100" text-anchor="middle" fill="#cbd5e1" font-size="11.5">Quotient dim m+1 → m</text>
+        <text x="612" y="124" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">10–25 s in SageMath</text>
+        <text x="612" y="154" text-anchor="middle" fill="#94a3b8" font-size="11.5">MiniMax Route A</text>
 
-        <line x1="723" y1="102" x2="754" y2="102" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
+        <line x1="706" y1="100" x2="736" y2="100" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
 
         <!-- Step 4 -->
-        <rect x="761" y="30" width="144" height="145" rx="12" fill="#172542" stroke="#34d399" stroke-width="1.6"/>
-        <text x="833" y="56" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">④ 补齐 & 验签</text>
-        <text x="833" y="86" text-anchor="middle" fill="#e2e8f0" font-size="12">O(n) 补全 500 列</text>
-        <text x="833" y="110" text-anchor="middle" fill="#e2e8f0" font-size="12">重构 H_cand == H_pub</text>
-        <text x="833" y="148" text-anchor="middle" fill="#34d399" font-size="13" font-weight="800">check_key == 1</text>
+        <rect x="743" y="25" width="163" height="150" rx="12" fill="#172542" stroke="#38bdf8" stroke-width="1.6"/>
+        <text x="824" y="52" text-anchor="middle" fill="#7dd3fc" font-size="13" font-weight="700">4. Extend &amp; Verify</text>
+        <text x="824" y="78" text-anchor="middle" fill="#e2e8f0" font-size="12">O(n) support extension</text>
+        <text x="824" y="100" text-anchor="middle" fill="#cbd5e1" font-size="11.5">Bit-exact RREF match</text>
+        <text x="824" y="124" text-anchor="middle" fill="#34d399" font-size="12" font-weight="800">check_solution = 1</text>
+        <text x="824" y="154" text-anchor="middle" fill="#94a3b8" font-size="11.5">MiniMax + TII</text>
       </svg>
     </div>
 
-    <h3>为什么我们的 GPU 内核能把 2,048 核 CPU 集群拉下马？</h3>
-    <p>Stern–Dumer ISD（<code>p = 3 + 3 = 6</code>）每轮都要先把矩阵随机高斯消元，再把左半边 <code>~29 万</code> 个三元组放进 <code>131,072</code> 个哈希桶，再拿右半边 <code>~30 万</code> 个三元组去撞桶。<strong>直接往 GPU 上搬会撞死在“内存墙”上</strong>——我们靠四代演进（v1 → v4）逐个击破了三大硬件瓶颈：</p>
-
+    <h3>Four Coupled GPU-Aware Modifications</h3>
     <div class="two-col">
       <div class="card">
-        <h4>🔧 技巧 1：16 字节 <code>ulonglong2</code> 零索引无损打包</h4>
-        <p>哈希桶号固定了低 17 比特，<code>TII-237</code> 剩余 <code>135 - 17 = 118</code> 比特全部无损塞进 <strong>1 个 128-bit <code>ulonglong2</code>（16 字节）</strong>。桶碰撞后通过重量过滤的概率极低（TII-245 约 <code>2^-27.0</code>，TII-237 约 <code>2^-33.6</code>），因此<strong>不存左三元组列号</strong>，命中后再反查！</p>
+        <h4>1. Lossless 16-Byte Zero-Index Packing</h4>
+        <p>The 17-bit bucket index fixes the low 17 syndrome bits. For any <code>mt ≤ 145</code>, all remaining <code>mt − 17 ≤ 128</code> bits fit losslessly into one 16-byte <code>ulonglong2</code>. Because the weight-filter pass probability is tiny (<code>2^-27.02</code> to <code>2^-35.74</code>), we drop left-triple indices from the hot bucket table and reconstruct them only on exact hits.</p>
       </div>
       <div class="card">
-        <h4>⚡ 技巧 2：面向 L2 缓存容量的协同设计（G = 4）</h4>
-        <p>58 个 SM 各自开哈希表需要约 516 MB–1.03 GB，会打穿 L2 缓存。我们改为<strong>全部 SM 协同处理 4 组哈希表</strong>，总工作集 <strong>35.7 MB</strong>，小于 L4（<strong>50.3 MB</strong>）与 A100（<strong>41.9 MB</strong>）标称 L2 容量（每桶 4 槽约保留 TII-237 95.1% 的左三元组）。</p>
+        <h4>2. Cooperative L2-Sized Tables (G = 4 / G = 8)</h4>
+        <p>Assigning one hash table per SM allocates 1.04–1.49 GB and thrashes global memory. Instead, all SMs cooperate on <code>G=4</code> tables on L4 (<code>35.7 MB &lt; 50.3 MB</code> L2) or <code>G=8</code> tables on L40S (<code>71.4 MB &lt; 100.7 MB</code> L2, 144 cooperative blocks).</p>
       </div>
       <div class="card">
-        <h4>🎯 技巧 3：Profiling 抓出 74% 暗坑——全 SM 批量消元</h4>
-        <p>我们给 v3 打了 CUDA Event 精确计时，发现高斯消元 <code>k_sys</code> 占了 <strong>74.0% 的时间（68.0ms / 91.9ms）</strong>——因为只开了 4 个 block，54 个 SM 在空闲！改成<strong>单次发射 256 组全 SM 批量消元</strong>后，单 L4 吞吐提升 <strong>3.5 倍</strong>。</p>
+        <h4>3. Batched Full-SM Systematic Reduction</h4>
+        <p>CUDA event profiling on <code>v3</code> revealed that unbatched Gaussian elimination (<code>k_sys&lt;&lt;&lt;4,256&gt;&gt;&gt;</code>) consumed <strong>74.0% of runtime</strong> while leaving 54/58 SMs idle. Batching <code>64G</code> random reductions per launch (256 on L4, 512 on L40S) raised L4 throughput <strong>3.5×</strong> to 9,462 it/s on <code>TII-237</code> and 11,035 it/s on <code>TII-245</code>.</p>
       </div>
       <div class="card">
-        <h4>💡 创新 4（算法+硬件协同）：GPU 感知最优缩短窗口 <code>n'</code> + L40S 扩展</h4>
-        <p>MiniMax 默认选极窄 <code>n'</code>（仅留 ~1.5–2× 码字供给），导致后半程撞上 coupon-collector 重复墙。我们联合建模 <strong>4 槽桶溢出率 + coupon-collector + M4RI 耗时</strong>，把 <code>TII-228</code> 放到 <code>n'=395</code>（算力省 47%）、<code>TII-235</code> 放到 <code>n'=425</code>（算力省 34%）；并在 L40S（<code>100.7 MB L2 / 142 SM</code>）上扩展为 <code>G=8 / 144 blocks</code>（<code>71.4 MB</code> 仍全入 L2），10 卡满载 3 小时即可冲顶 <code>mt=144</code>！</p>
+        <h4>4. GPU-Aware Optimal Shortening Window n'</h4>
+        <p>Narrow CPU-oriented prefixes hit coupon-collector duplication late in the run. Widening <code>n'</code> (<code>TII-228: 395</code>, <code>TII-235: 425</code>) keeps SageMath M4RI under 25 s while cutting modeled GPU-hours by <strong>34%–47%</strong> and holding 10-GPU cross-worker overlap to <strong>2.06%</strong>.</p>
       </div>
     </div>
 
-    <h3>交互式查看：我们的 CUDA 内核 4 代进化（单张 NVIDIA L4 实测）</h3>
+    <h3>Interactive Kernel Evolution (Single NVIDIA L4 Throughput)</h3>
     <div class="tabs">
-      <button class="tab-btn" onclick="showVer('v1', this)">v1 初版</button>
-      <button class="tab-btn" onclick="showVer('v2', this)">v2 16B打包</button>
-      <button class="tab-btn" onclick="showVer('v3', this)">v3 L2 容量协同</button>
-      <button class="tab-btn active" onclick="showVer('v4', this)">v4 批量消元（当前）</button>
+      <button class="tab-btn" onclick="showVer('v1', this)">v1 Per-SM</button>
+      <button class="tab-btn" onclick="showVer('v2', this)">v2 16B Pack</button>
+      <button class="tab-btn" onclick="showVer('v3', this)">v3 L2 Coop</button>
+      <button class="tab-btn active" onclick="showVer('v4', this)">v4 Batched (Final)</button>
     </div>
     <div class="ver-panel" id="verPanel"></div>
   </section>
 
   <footer>
-    Prepared for <code>raullenchai/research/tii_mceliece_gpu</code> · 2026-11-22 · L2-Sized Cooperative CUDA ISD (Apache-2.0 derived from MiniMax)
+    Raullen Chai &amp; Xinxin Fan (MachineFi Labs) · <code>github.com/raullenchai/tii-mceliece-gpu</code> · Apache-2.0 (derived from MiniMax)
   </footer>
 </div>
 
 <script>
 const VERS = {
   v1: {
-    title: "v1：每 SM 独立建表（1 block/SM，32 字节/项）",
-    desc: "直觉移植：58 个 block 各自做消元和 32B 哈希表（远超 50.3 MB 标称 L2 容量），受限于 GDDR6 显存随机访存。",
+    title: "v1: Naive Per-SM Port (58 blocks, 6 slots × 32B = 1.49 GB)",
+    desc: "Direct GPU port where each SM owns a private hash table. At 1.49 GB total (~30× L4's 50.3 MB L2 cache), every random probe stalls on GDDR6 global memory.",
     t245: 3536, t237: 2208,
-    bottleneck: "瓶颈：58 组独立随机哈希表远超 L2 容量"
+    bottleneck: "Bottleneck: 1.49 GB of live hash tables completely blows out L2 cache"
   },
   v2: {
-    title: "v2：16 字节 ulonglong2 打包 + 2 blocks/SM（116 blocks）",
-    desc: "把桶项从 32B 压到 16B，但把并发 block 翻倍到 116 个（~1.04 GB），反而加剧了 L2 缓存抖动，速度不升反降——这次反常实验直接指明了按 L2 容量缩减并发组的方向！",
+    title: "v2: 16-Byte ulonglong2 Packing + 2 blocks/SM (116 blocks = 1.04 GB)",
+    desc: "Shrinking entries to 16B with 4 slots while doubling concurrency to 116 blocks still exceeded L2 by >20× and worsened cache-line contention, dropping throughput.",
     t245: 2730, t237: 1872,
-    bottleneck: "发现：116 组并发桶表（~1.04 GB）导致更严重的 L2 抖动"
+    bottleneck: "Key insight: shrinking entries isn't enough — total active tables must fit inside L2"
   },
   v3: {
-    title: "v3：面向 L2 容量的协同执行（G = 4 组，总工作集 35.7 MB）",
-    desc: "全部 SM 协同只维护 4 张哈希表（35.7 MB < L4 50.3 MB 标称 L2），build + probe 256 次迭代仅耗时 23.5 ms！但 CUDA Event Profiling 暴露出 k_sys 占了 68.0 ms（74.0%）。",
+    title: "v3: Cooperative L2-Sized Execution (G = 4 tables = 35.7 MB)",
+    desc: "All SMs cooperate on just 4 tables (< 50.3 MB L4 L2). Build + probe dropped to 23.5 ms per 256 iterations, but CUDA profiling exposed k_sys taking 68.0 ms (74.0%).",
     t245: 3478, t237: 2671,
-    bottleneck: "Profiling 抓出 74.0% 暗坑：k_sys 只用 4 个 block，54 个 SM 闲置"
+    bottleneck: "Profiling discovery: unbatched k_sys<<<4, 256>>> left 54 of 58 SMs idle for 74.0% of runtime"
   },
   v4: {
-    title: "v4（最终版）：全 SM 批量高斯消元 + L2 容量协同（G = 4）",
-    desc: "单次发射 256 个 block 让全部 SM 满载批量跑完 256 组随机系统化消元，再接 64 轮协同撞桶。单张 L4 达 9,462 it/s（TII-237）/ 11,035 it/s（TII-245），19.6 分钟打穿 TII-245，约 22.1 GPU-h 攻破 TII-237（mt=135）！",
+    title: "v4 (Final): Batched Full-SM k_sys (64G) + L2 Cooperation (G=4 L4 / G=8 L40S)",
+    desc: "Launching 64G reductions in one k_sys batch (256 on L4, 512 on L40S) ahead of 64 cooperative build/probe steps saturates all SMs. Scales cleanly to 12,081 it/s (TII-228) and 10,934–15,593 it/s (TII-235) on L40S.",
     t245: 11035, t237: 9462,
-    bottleneck: "最终效果：TII-237 提速 4.3×，TII-245 端到端快 2.12×（目标归一化 ~1.9×）！"
+    bottleneck: "Result: 4.3× speedup on TII-237 (L4) · 18.9 min on TII-228 · 4.30 h on TII-235 (mt = 144)!"
   }
 };
 
@@ -560,8 +504,8 @@ function showVer(k, btn) {
   const p245 = Math.round((v.t245 / 11500) * 100);
   const p237 = Math.round((v.t237 / 11500) * 100);
   document.getElementById('verPanel').innerHTML = `
-    <div style="font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:6px">${v.title}</div>
-    <div style="font-size:14px;color:#cbd5e1;margin-bottom:14px">${v.desc}</div>
+    <div style="font-size:15.5px;font-weight:700;color:#f8fafc;margin-bottom:6px">${v.title}</div>
+    <div style="font-size:13.8px;color:#cbd5e1;margin-bottom:14px">${v.desc}</div>
     <div class="bar-row">
       <div class="bar-label">TII-245 (mt=108)</div>
       <div class="bar-track"><div class="bar-fill" style="width:${p245}%;background:linear-gradient(90deg,#38bdf8,#7dd3fc)">${v.t245.toLocaleString()} it/s</div></div>
