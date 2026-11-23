@@ -1,39 +1,50 @@
 \documentclass[11pt,a4paper]{article}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.95in]{geometry}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
+\usepackage{caption}
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{microtype}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
 \emergencystretch=2em
+\captionsetup[table]{skip=6pt}
 
 \definecolor{linkblue}{HTML}{1E4E79}
+\definecolor{accentgreen}{HTML}{136F4A}
+\definecolor{accentamber}{HTML}{9A5B00}
+\definecolor{accentred}{HTML}{9E2A2B}
+\definecolor{mutedgray}{HTML}{4A5568}
+\definecolor{boxbg}{HTML}{F7FAFC}
+\definecolor{greenbg}{HTML}{EDF7F2}
+
 \hypersetup{
   colorlinks=true,
   linkcolor=linkblue,
   citecolor=linkblue,
   urlcolor=linkblue,
-  pdftitle={Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD and Key Recovery on TII-237 (mt=135)},
-  pdfauthor={Raullen Qi Chai}
+  pdftitle={Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD and Key Recovery up to TII-235 (mt=144)},
+  pdfauthor={Raullen Chai, Xinxin Fan}
 }
 
 \title{\textbf{Packing Stern into L2:}\\
-GPU-Accelerated Primal-Shortened ISD and Key Recovery on \texttt{TII-237} ($mt=135$)}
+GPU-Accelerated Primal-Shortened ISD and Key Recovery up to \texttt{TII-235} ($mt=144$)}
 
-\author{Raullen Qi Chai\\[2pt]
+\author{Raullen Chai \qquad Xinxin Fan\\[3pt]
 \small MachineFi Labs\\
-\small \texttt{raullen@machinefi.com}}
+\small \texttt{\{raullen, xinxin\}@machinefi.com}}
 \date{November 22, 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-MiniMax recently showed that Primal-Shortened Information-Set Decoding (ISD) with quadratic polar lifting recovers keys from high-codimension TII McEliece Track-2 challenges, reaching $mt=126$ on \texttt{TII-228} in $2{,}463$ CPU core-hours. On instances with $mt \ge 108$, over $99\%$ of runtime goes to harvesting minimum odd-weight ($w=2t+1$) codewords of a shortened parity-check matrix $H_A$. We ask whether that harvesting bottleneck moves cleanly from CPU clusters to GPUs without changing the algebraic attack.
+MiniMax recently showed that Primal-Shortened Information-Set Decoding (ISD) with quadratic polar lifting recovers keys from high-codimension TII McEliece Track-2 challenges, reaching $mt=126$ on \texttt{TII-228} in $2{,}463$ CPU core-hours ($57.1\text{ min}$ across $2{,}048\text{--}5{,}120$ EPYC cores). Because more than $99\%$ of runtime at $mt \ge 108$ goes to harvesting minimum odd-weight ($w=2t+1$) codewords of a shortened parity-check matrix $H_A$, the algebraic lift is no longer the limiting stage. We ask how far this harvesting bottleneck can be pushed on GPUs without altering the algebraic recovery.
 
-A per-SM GPU port of MiniMax's Mode-6 Stern sampler ($p=3+3, l=17$) keeps $1.0\text{--}1.5\text{ GB}$ of hash tables active and stalls on global memory. For $mt \le 145$, we pack all $mt-17 \le 128$ remaining syndrome bits into one $16$-byte \texttt{ulonglong2} without storing left-triple indices, cooperate across all SMs on $G=4$ concurrent tables ($35.7\text{ MB}$ total, below the $50.3\text{ MB}$ L4 and $41.9\text{ MB}$ A100 L2 caches), and batch $256$ random systematic reductions per launch after profiling showed unbatched elimination spent $74.0\%$ of runtime with $54/58$ SMs idle.
+Porting MiniMax's Mode-6 Stern sampler ($p=3+3, l=17$) directly to one block per SM leaves $1.0\text{--}1.5\text{ GB}$ of hash tables active and stalls on global memory. For $mt \le 145$, we pack all $mt-17 \le 128$ remaining syndrome bits into one $16$-byte \texttt{ulonglong2} without storing left-triple indices, cooperate across all SMs on $G$ concurrent tables sized below nominal L2 capacity ($G=4$, $35.7\text{ MB}$ on L4; $G=8$, $71.4\text{ MB}$ on L40S), and batch $64G$ random systematic reductions per launch ($256$ on L4, $512$ on L40S) after profiling exposed that unbatched elimination left $54/58$ SMs idle for $74.0\%$ of runtime. Under a Poisson-bucket and coupon-collector model, widening the shortening prefix $n'$ beyond narrow CPU-oriented choices reduces total GPU-hours by $34\%\text{--}47\%$ while keeping SageMath linear algebra under $25\text{ s}$.
 
-On one NVIDIA L4, the kernel sustains $11{,}035\text{ it/s}$ on \texttt{TII-245} and $9{,}462\text{ it/s}$ on \texttt{TII-237} ($3.1\times$ and $4.3\times$ over our per-SM port). On \texttt{TII-245} ($mt=108$), a single L4 recovers an equivalent private key in $1{,}185.3\text{ s}$ end-to-end ($2.12\times$ faster than MiniMax's $64$-core Xeon run, or $\approx 1.9\times$ normalized for target size). Across $\approx 22.1$ Colab L4 GPU-hours ($\approx 7.4\times 10^8$ iterations), we harvest $29{,}742$ weight-$31$ codewords for \texttt{TII-237} ($n=500, m=9, t=15, mt=135$) and recover an equivalent private key in $23.23\text{ s}$ of SageMath post-processing---to our knowledge as of November 22, 2026, the largest codimension among publicly documented Track-2 solutions. These experiments do not demonstrate practical recovery against proposed Classic McEliece parameter sets ($mt \ge 768$).
+We validate the complete pipeline across four Track-2 challenges spanning $mt = 108 \to 144$, passing both the official SageMath checker and a standalone pure-Python verifier on every instance. On \texttt{TII-245} ($mt=108$), one NVIDIA L4 finishes in $1{,}185.3\text{ s}$ harvesting plus lift ($\approx 1.91\times$ target-normalized over a $64$-core Xeon). On \texttt{TII-228} ($mt=126$), eight Modal L40S GPUs recover the key in $18.9\text{ min}$ wall-clock ($2.15$ GPU-hours, $93.6\text{M}$ iterations, $24.64\text{ s}$ lift), outperforming MiniMax's multi-thousand-core EPYC run by $3.0\times$ in wall-clock time. On the previously undocumented instances \texttt{TII-237} ($mt=135$, $22.1$ Colab L4 GPU-hours) and \texttt{TII-235} ($n=502, m=9, t=16, mt=144$, $4.30\text{ h}$ wall-clock across ten Modal L40S GPUs, $39.62$ GPU-hours, $17.97\text{ s}$ lift), we recover equivalent private keys using $127$ of $128$ bits---within one bit of the lossless packing ceiling ($mt=145$). To our knowledge as of November 22, 2026, $mt=144$ is the largest codimension among publicly documented Track-2 solutions. These results do not demonstrate practical recovery against proposed Classic McEliece parameter sets ($mt \ge 768$).
 
 \medskip
 \noindent\textbf{Keywords:} McEliece cryptosystem, binary Goppa codes, information-set decoding, GPU cryptanalysis, TII McEliece Challenges.
@@ -41,128 +52,280 @@ On one NVIDIA L4, the kernel sustains $11{,}035\text{ it/s}$ on \texttt{TII-245}
 
 \section{Introduction}
 
-The McEliece cryptosystem~\cite{McEliece78} hides a binary Goppa code $\Gamma(L, g)$ behind a systematic parity-check matrix $H_{\mathrm{pub}} \in \mathbb{F}_2^{mt \times n}$. Classic McEliece reached Round~4 of the NIST post-quantum standardization process (NIST selected HQC in March 2025). To measure concrete structural key-recovery margins across code dimensions and rates, the Technology Innovation Institute (TII) published $204$ non-toy Track-2 public-key recovery instances (plus two toy instances in the checker)~\cite{TIIRepo}.
+The McEliece cryptosystem~\cite{McEliece78} conceals a binary Goppa code $\Gamma(L, g)$ behind a systematic parity-check matrix $H_{\mathrm{pub}} \in \mathbb{F}_2^{mt \times n}$. Although Classic McEliece reached Round~4 of the NIST post-quantum standardization process (NIST selected HQC in March 2025), concrete structural key-recovery margins on smaller parameters remained sparsely mapped until the Technology Innovation Institute (TII) published $204$ non-toy Track-2 public-key recovery challenges alongside two toy verification instances~\cite{TIIRepo}.
 
-In 2026, algebraic and hybrid attacks pushed Track-2 solutions far past earlier bounds. Bardet, Lemoine, and Tillich~\cite{BLT26} reached \texttt{TII-210} ($mt=63$) via Pfaffian relations; Hemmert~\cite{Hemmert26} reached \texttt{TII-248} ($mt=63$) with higher-order vanishing (HOV); Vedenev~\cite{Vedenev26} and Weis~\cite{Weis26} solved \texttt{TII-253} ($mt=72$); and Saarinen pushed Frobenius-reduced HOVER to \texttt{TII-252} ($mt=110$)~\cite{Saarinen26HOVER} and Two-Anchor Holdout/Hermite to \texttt{TII-254} ($mt=96$, reporting $27.2$ GPU-hours for the two final Krylov sequences on $8\times$ NVIDIA GH200)~\cite{Saarinen26TwoAnchor}. On November 20, 2026, MiniMax~\cite{MiniMax26} introduced Primal-Shortened ISD with quadratic polar lifting (Route~A) alongside an optimized HOVER path (Route~B), recovering $94$ Track-2 keys ($55$ new) up to \texttt{TII-228} ($mt=126$, $2{,}463$ physical CPU core-hours in $57.1\text{ min}$ on $2{,}048\text{--}5{,}120$ EPYC cores) and \texttt{TII-250} ($mt=120$, $66{,}722$ core-hours on $5{,}120\text{--}10{,}240$ cores).
+In November 2026, MiniMax~\cite{MiniMax26} extended Track-2 recoveries to $94$ keys up to codimension $mt=126$ using Primal-Shortened ISD (Route~A) alongside an auxiliary HOVER pipeline (Route~B). What makes Route~A structurally unusual is its runtime asymmetry. On \texttt{TII-245} ($mt=108$), SageMath recovers $(g, L)$ from harvested codewords in under ten seconds, whereas an OpenMP C sampler (\texttt{minwords\_mt.c}) consumes over $99\%$ of wall-clock time searching for weight-$(2t+1)$ vectors in a shortened parity-check kernel. The algebra is already cheap. Everything that limits codimension scaling sits inside a memory-bound collision search.
 
-What makes Route~A unusual among structural attacks is its cost split. On \texttt{TII-245} ($mt=108$), the final algebraic lift in SageMath takes under ten seconds; more than $99\%$ of runtime is spent inside a single OpenMP C sampler (\texttt{minwords\_mt.c}) harvesting weight-$(2t+1)$ codewords of a shortened parity-check matrix $H_A$. Codeword harvesting therefore dominates the measured recovery time.
+We leave MiniMax's algebraic recovery algorithm and Mode-6 Stern parameters ($p=3+3, l=17$, $16\text{ KB}$ occupancy bitmap) intact, and redesign the harvesting stage around two coupled constraints: GPU L2 cache capacity and the shortening-window trade-off. Sizing $G=4$ or $G=8$ cooperative hash tables below nominal L2 capacity reduces global-memory pressure; widening the shortened prefix $n'$ beyond narrow CPU-oriented choices trades a modest increase in $\mathbb{F}_2$ matrix dimension for a $10\times\text{--}25\times$ jump in codeword supply, yielding a modeled $34\%\text{--}47\%$ reduction in GPU-hours. Together, these changes compress \texttt{TII-228} ($mt=126$) from $57.1\text{ min}$ on $2{,}048\text{--}5{,}120$ EPYC cores to $18.9\text{ min}$ on eight L40S GPUs, and push verified Track-2 key recovery through \texttt{TII-237} ($mt=135$) to \texttt{TII-235} ($mt=144$, punctured at $10$ positions).
 
-This note leaves MiniMax's algebraic recovery algorithm, Mode-6 Stern parameters ($p=3+3, l=17$, $16\text{ KB}$ occupancy bitmap), and shortening schedule (\path{optimal_shortening_sizes}) intact, and re-engineers only the codeword harvester for GPU memory hierarchies. A single NVIDIA L4 outperforms a $64$-core Xeon server by $\approx 1.9\times$ (target-normalized) on \texttt{TII-245}, and $\approx 22.1$ aggregate Colab L4 GPU-hours suffice to harvest $29{,}742$ weight-$31$ codewords and recover an equivalent private key for \texttt{TII-237} ($n=500, m=9, t=15, mt=135$), which to our knowledge had no publicly documented solution as of November 22, 2026. Because $mt$ alone does not order instance difficulty across different $(n, m, t, n')$ tuples---indeed, \texttt{TII-237} has smaller shortened dimension $k'=243$ than \texttt{TII-250}'s $k'=347$---we treat $mt=135$ strictly as a codimension milestone, not a claim that \texttt{TII-237} is harder than every lower-$mt$ challenge.
+Because codimension $mt$ does not order difficulty monotonically across arbitrary $(n, m, t, n')$ tuples---MiniMax's \texttt{TII-250} ($mt=120, k'=347$) required far more search work than \texttt{TII-237} ($mt=135, k'=243$)---we treat $mt=144$ as a concrete parameter milestone rather than a universal difficulty claim. Its architectural significance is sharper: at $mt=144$ with $l=17$, the packed syndrome occupies $127$ of $128$ bits in a $16$-byte \texttt{ulonglong2}, sitting within one bit of our lossless packing ceiling ($mt=145$) before the next Track-2 jump ($mt=153$ and $mt=160$).
 
-\section{Primal-Shortened ISD}
+\section{Prior Work and the Track-2 Landscape}
 
-Let $L = (\alpha_0, \dots, \alpha_{n-1}) \in \mathbb{F}_{2^m}^n$ be an ordered support of $n$ distinct elements and $g(X) \in \mathbb{F}_{2^m}[X]$ a monic square-free Goppa polynomial of degree $t$ with $g(\alpha_i) \ne 0$ for all $i$. Let $H_{\mathrm{pub}} \in \mathbb{F}_2^{mt \times n}$ be the systematic parity-check matrix of $\Gamma(L, g)$ (with designed redundancy $mt$; we check full rank empirically on each instance). Fixing a prefix window $A = \{0, \dots, n'-1\}$ with $\operatorname{rank}(H_A) = mt$ defines the shortened Goppa code $\mathcal{C}_A = \ker(H_A) = \Gamma(L_A, g)$ of dimension $k' = n' - mt$.
+During 2026, two distinct families of structural attacks drove Track-2 progress: pure algebraic vanishing methods and hybrid combinatorial-algebraic harvesting.
 
-Any codeword $c \in \mathcal{C}_A$ of minimum odd Hamming weight $w = 2t + 1$ and support $S \subset A$ has locator polynomial $\sigma_S(X) = \prod_{i \in S}(X - \alpha_i)$ satisfying the characteristic-$2$ derivative-square identity $\sigma'_S(X) = g(X)^2$ (credited to Finiasz in~\cite{MiniMax26}). Restricting to the nonempty odd-weight affine slice of $\mathcal{C}_A$ (affine dimension $d = k' - 1$), MiniMax~\cite{MiniMax26} showed that every weight-$(2t+1)$ codeword satisfies $m+1$ quadratic relations over the $F(d) = 1 + d + \binom{d}{2}$ quadratic monomials in $d$ coordinates. One relation is the public quadratic weight identity $\sum_{i<j} c_i c_j = \binom{w}{2} \bmod 2$, whose associated symmetric bilinear polar form we denote $T_{\mathrm{pub}}$.
+Bardet, Lemoine, and Tillich~\cite{BLT26} broke instances up to \texttt{TII-210} ($mt=63$) via Pfaffian relations, and Hemmert~\cite{Hemmert26} reached \texttt{TII-248} ($mt=63$) using higher-order vanishing (HOV). Following hold-out improvements by Vedenev~\cite{Vedenev26} and Weis~\cite{Weis26} on \texttt{TII-253} ($mt=72$), Saarinen introduced Frobenius-reduced HOVER to solve \texttt{TII-252} ($m=10, t=11, mt=110$)~\cite{Saarinen26HOVER} and Two-Anchor Holdout/Hermite to solve \texttt{TII-254} ($mt=96$, reporting $27.2$ GPU-hours for the two final Krylov sequences on $8\times$ NVIDIA GH200)~\cite{Saarinen26TwoAnchor}. Algebraic vanishing attacks require almost no combinatorial search, yet they depend heavily on full or near-full support ($n \approx 2^m$, such as \texttt{TII-252} at $n=1{,}024=2^{10}$). Once a code is punctured by $10\text{--}20$ positions, vanishing relations lose rank or blow up in dimension.
 
-Under the heuristic hypothesis that the harvested weight-$(2t+1)$ codewords produce an evaluation matrix of rank $F(d) - (m+1)$ (making $F(d)-(m+1)$ a planning threshold rather than a guarantee), dense $\mathbb{F}_2$ elimination recovers the $(m+1)$-dimensional relation space. Modding out $T_{\mathrm{pub}}$ leaves $m$ polar forms whose lifting yields an equivalent pair $(L_A, g)$. Once the unscrambling transformation is computed and applied to $H_{\mathrm{pub}}$, extending $L_A$ to all $n$ columns takes $O(n)$ field divisions for fixed $(m, t)$.
+Primal-Shortened ISD~\cite{MiniMax26} inverts that trade-off. Rather than exploiting full support, it shortens the code further to $n'$ columns, harvests weight-$(2t+1)$ codewords, and recovers $(g, L)$ from quadratic polar forms. Puncturing no longer obstructs the attack, which explains why MiniMax's Route~A reached \texttt{TII-228} ($mt=126$, $12$ punctures, $2{,}463$ EPYC core-hours) and \texttt{TII-250} ($mt=120$, $66{,}722$ core-hours on $5{,}120\text{--}10{,}240$ cores). Figure~\ref{fig:ladder} and Table~\ref{tab:landscape} place our four solved instances along this escalation path, showing why TII challenge IDs (estimated under 2023 attacks) no longer match Primal-Shortened ISD cost.
 
-For \texttt{TII-237} ($n=500, m=9, t=15, mt=135, w=31$), MiniMax's shortening schedule selects $n'=378$, giving measured $\operatorname{rank}(H_A)=135$, $k'=243$, $d=242$, and planning threshold $F(d)-(m+1)=29{,}394$. A random-code heuristic predicts $\binom{378}{31}/2^{135} \approx 62{,}943$ weight-$31$ codewords in $\mathcal{C}_A$. Lincoln--Petersen capture--recapture between our two largest independent-seed L4 workers ($|A|=17{,}009$, $|B|=8{,}570$, $|A \cap B|=2{,}215$) yields $\hat{N} = 65{,}809 \pm 1{,}123$ (standard error; 95\% CI $[63{,}608, 68{,}010]$), within $5\%$ of the random-code prediction. Both figures are heuristic and subject to the sampling caveats in Section~\ref{sec:limits}.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  x=1.02cm, y=0.90cm,
+  >=Stealth,
+  node font=\scriptsize,
+  pill/.style={draw, rounded corners=2pt, inner sep=2pt, font=\scriptsize\bfseries}
+]
+  % Axes (qualitative difficulty ladder)
+  \draw[->, mutedgray, thick] (0.2, 0.3) -- (13.6, 0.3);
+  \draw[->, mutedgray, thick] (0.2, 0.3) -- (0.2, 4.3);
+  \node[mutedgray, rotate=90, anchor=south] at (0.05, 2.3) {Relative Cost (log scale)};
 
-\section{Fitting Stern into the GPU L2 Cache}
+  % Escalation path
+  \draw[dashed, linkblue, thick]
+    (1.1, 0.75) -- (3.0, 1.05) -- (5.0, 1.40) -- (7.0, 1.95) -- (9.1, 2.55) -- (11.1, 3.25) -- (12.8, 3.90);
 
-MiniMax's Mode-6 CPU sampler performs full random systematic reduction followed by a Stern-style~\cite{Stern89,Dumer91} meet-in-the-middle search with $p=3+3$ non-pivot bits, $l=17$ collision bits ($2^{17} = 131{,}072$ buckets), and a $16\text{ KB}$ occupancy bitmap pre-filter (referred to as Stern--Dumer following~\cite{MiniMax26}). Each reduction splits the $k'$ non-pivot columns into left and right halves of sizes $\lfloor k'/2 \rfloor$ and $\lceil k'/2 \rceil$---for \texttt{TII-237}, $121$ and $122$ columns, yielding $\binom{121}{3}=287{,}980$ left triples and $\binom{122}{3}=295{,}240$ right triples.
+  % Nodes (evenly spaced, single-line non-overlapping bottom labels)
+  \fill[mutedgray] (1.1, 0.75) circle (3pt);
+  \node[above=5pt] at (1.1, 0.75) {\texttt{210/248}};
+  \node[below=5pt, align=center] at (1.1, 0.3) {\textbf{$mt{=}63$}\\Pfaffian};
 
-On a CPU, one thread owns one reduction and its hash table fits in L2/L3 cache. Moving that design directly to a GPU does not work. Our per-SM port (\texttt{v1}: $58$ blocks, $6$ slots $\times$ $32$ bytes per bucket, $25.7\text{ MB}$ per table) keeps $1.49\text{ GB}$ of hash tables live. Halving each entry to $16$ bytes with $4$ slots and raising occupancy to $2$ blocks/SM (\texttt{v2}: $116$ blocks, $8.93\text{ MB}$ per table, $1.04\text{ GB}$ total) reduced aggregate allocation yet lowered \texttt{TII-237} throughput from $2{,}208$ to $1{,}872\text{ it/s}$: both allocations exceed the $50.3\text{ MB}$ L4 L2 cache by more than $20\times$, and twice as many blocks contend for it.
+  \fill[linkblue!70] (3.0, 1.05) circle (3pt);
+  \node[above=5pt] at (3.0, 1.05) {\texttt{254/252/245}};
+  \node[below=5pt, align=center] at (3.0, 0.3) {\textbf{$mt{=}96\text{--}110$}\\HOVER / L4};
 
-Our final kernel (\path{src/minwords_gpu_v4.cu}, derived from MiniMax's \texttt{minwords\_mt.c} under Apache-2.0) addresses this in three steps.
+  \fill[linkblue] (5.0, 1.40) circle (3.5pt);
+  \node[pill, draw=linkblue, fill=boxbg, above=7pt] at (5.0, 1.40) {\texttt{TII-228} (18.9m)};
+  \node[below=5pt, align=center] at (5.0, 0.3) {\textbf{$mt{=}126$}\\2.15 L40S-h};
 
-\paragraph{Lossless 16-byte packing without left indices.}
-The bucket index $h \in [0, 2^{17})$ already fixes the lowest $17$ syndrome bits. Whenever $mt \le 145$, the remaining $mt - 17 \le 128$ bits fit losslessly into two $64$-bit words:
+  \fill[accentgreen] (7.0, 1.95) circle (4pt);
+  \node[pill, draw=accentgreen, fill=greenbg, text=accentgreen, above=7pt] at (7.0, 1.95) {\texttt{TII-237} (Solved)};
+  \node[below=5pt, align=center, text=accentgreen] at (7.0, 0.3) {\textbf{$mt{=}135$}\\22.1 L4-h};
+
+  \fill[accentgreen] (9.1, 2.55) circle (4.5pt);
+  \node[pill, draw=accentgreen, fill=greenbg, text=accentgreen, above=7pt] at (9.1, 2.55) {\texttt{TII-235} (Solved)};
+  \node[below=5pt, align=center, text=accentgreen] at (9.1, 0.3) {\textbf{$mt{=}144$}\\39.6 L40S-h};
+
+  \fill[accentred] (11.1, 3.25) circle (3.5pt);
+  \node[above left=4pt and -4pt, text=accentred, font=\scriptsize\bfseries] at (11.1, 3.25) {\texttt{TII-185} ($>$128b)};
+  \node[below=5pt, align=center, text=accentred] at (11.1, 0.3) {\textbf{$mt{=}153$}\\Unverified est.};
+
+  \fill[mutedgray!80!black] (12.8, 3.90) circle (3.8pt);
+  \node[pill, draw=mutedgray, fill=boxbg, above=5pt] at (12.8, 3.90) {Classic McEliece};
+  \node[below=5pt, align=center] at (12.8, 0.3) {\textbf{$mt{\ge}768$}\\348864+};
+\end{tikzpicture}
+\caption{Qualitative escalation of publicly documented TII Track-2 key recoveries by codimension $mt$. Our four verified recoveries (\texttt{TII-245}, \texttt{TII-228}, \texttt{TII-237}, \texttt{TII-235}) reach $127$ of $128$ packed bits ($mt=144$). \texttt{TII-185} ($mt=153$) exceeds the $128$-bit packing format.}
+\label{fig:ladder}
+\end{figure}
+
+\begin{table}[t]
+\centering
+\caption{Representative 2026 TII Track-2 key-recovery milestones and our four verified GPU recoveries.}
+\label{tab:landscape}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llllll}
+\toprule
+Tier & Instance & $(n, m, t)$ & $mt$ & Method & Compute / Status \\
+\midrule
+Prior & \texttt{TII-210/248} & $m=7\text{--}9$ & $63$ & Pfaffian / HOV~\cite{BLT26,Hemmert26} & CPU (minutes) \\
+Prior & \texttt{TII-253} & $(256, 8, 9)$ & $72$ & Hold-out / GIJS~\cite{Vedenev26,Weis26} & CPU \\
+Prior & \texttt{TII-254/252} & $m=8, 10$ & $96, 110$ & 2-Anchor / HOVER~\cite{Saarinen26HOVER,Saarinen26TwoAnchor} & $27.2$ GH200-h (\texttt{254}) \\
+Control & \texttt{TII-245} & $(493, 9, 12)$ & $108$ & MiniMax / \textbf{Ours (1$\times$L4)} & $44.6$ Xeon-ch vs.\ \textbf{19.6\,m} \\
+H2H & \texttt{TII-228} & $(500, 9, 14)$ & $126$ & MiniMax / \textbf{Ours (8$\times$L40S)} & $2{,}463$ EPYC-ch vs.\ \textbf{2.15 GPU-h} \\
+New & \texttt{TII-237} & $(500, 9, 15)$ & $135$ & \textbf{Ours (Colab L4)} & \textbf{22.1 L4-h} + 23.2\,s lift \\
+New & \texttt{TII-235} & $(502, 9, 16)$ & $144$ & \textbf{Ours (10$\times$L40S)} & \textbf{39.62 L40S-h} + 18.0\,s lift \\
+Next & \texttt{TII-185} & $(511, 9, 17)$ & $153$ & Unsolved (1 puncture) & $>128$b format ($\approx 180$ L40S-h est.) \\
+Margin & \texttt{348864+} & $(3488, 12, 64)$ & $\ge 768$ & Classic McEliece & Far beyond reach \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Primal-Shortened ISD and Four GPU-Aware Modifications}
+
+Let $L = (\alpha_0, \dots, \alpha_{n-1}) \in \mathbb{F}_{2^m}^n$ be an ordered support of $n$ distinct elements and $g(X) \in \mathbb{F}_{2^m}[X]$ a monic square-free Goppa polynomial of degree $t$ with $g(\alpha_i) \ne 0$ for all $i$. Taking a prefix $A = \{0, \dots, n'-1\}$ where $H_A \in \mathbb{F}_2^{mt \times n'}$ has full rank $mt$ (verified empirically on every instance) yields the shortened Goppa code $\mathcal{C}_A = \ker(H_A) = \Gamma(L_A, g)$ of dimension $k' = n' - mt$. Any codeword $c \in \mathcal{C}_A$ of minimum odd Hamming weight $w = 2t + 1$ and support $S \subset A$ has locator polynomial $\sigma_S(X) = \prod_{i \in S}(X - \alpha_i)$ satisfying the characteristic-$2$ derivative-square identity $\sigma'_S(X) = g(X)^2$ (attributed to Finiasz in~\cite{MiniMax26}). On the odd-weight affine slice of $\mathcal{C}_A$ (affine dimension $d = k' - 1$), every weight-$(2t+1)$ codeword satisfies $m+1$ quadratic relations over the $F(d) = 1 + d + \binom{d}{2}$ quadratic monomials in $d$ coordinates, including the public quadratic weight identity $\sum_{i<j} c_i c_j = \binom{w}{2} \bmod 2$ with associated symmetric bilinear polar form $T_{\mathrm{pub}}$~\cite{MiniMax26}. When harvested words span an evaluation matrix of rank $F(d) - (m+1)$, dense $\mathbb{F}_2$ elimination recovers the $(m+1)$-dimensional relation space, mods out $T_{\mathrm{pub}}$, lifts the remaining $m$ polar forms to an equivalent $(L_A, g)$, and extends $L_A$ to all $n$ positions in $O(n)$ field divisions after applying the unscrambling transformation to $H_{\mathrm{pub}}$.
+
+Figure~\ref{fig:pipeline} separates MiniMax's upstream algebraic pipeline from our four GPU-oriented modifications.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  >=Stealth,
+  node font=\scriptsize,
+  stage/.style={draw, rounded corners=3pt, minimum height=1.85cm, align=center, inner sep=4pt}
+]
+  \node[stage, draw=accentgreen, fill=greenbg, thick, text width=3.1cm] (s1) at (0,0)
+    {\textbf{1. GPU-Optimal Shortening}\\[3pt]
+     Widen $n'$ past CPU choice\\
+     (\texttt{228}: $395$, \texttt{235}: $425$)\\[3pt]
+     \textcolor{accentgreen}{\textbf{Ours (Mod.\ 4)}}};
+
+  \node[stage, draw=accentgreen, fill=greenbg, thick, text width=3.65cm] (s2) at (4.15,0)
+    {\textbf{2. L2-Sized GPU-ISD}\\[3pt]
+     16B zero-index packing\\
+     $G \in \{4,8\}$ L2 cooperation\\
+     Batched full-SM \texttt{k\_sys}\\[3pt]
+     \textcolor{accentgreen}{\textbf{Ours (Mods.\ 1--3)}}};
+
+  \node[stage, draw=linkblue, fill=boxbg, text width=3.0cm] (s3) at (8.25,0)
+    {\textbf{3. Quadratic Polar Lift}\\[3pt]
+     $\mathbb{F}_2$ M4RI on $F(d)$ cols\\
+     Quotient dim $m{+}1 \to m$\\
+     $10\text{--}25\text{ s}$ in SageMath\\[3pt]
+     \textcolor{linkblue}{MiniMax Route A~\cite{MiniMax26}}};
+
+  \node[stage, draw=linkblue, fill=boxbg, text width=2.8cm] (s4) at (11.95,0)
+    {\textbf{4. Extend \& Verify}\\[3pt]
+     $O(n)$ support extension\\
+     \mbox{Bit-exact} RREF check\\
+     \texttt{check\_solution} $= 1$\\[3pt]
+     \textcolor{linkblue}{MiniMax + TII~\cite{TIIRepo}}};
+
+  \draw[->, thick, mutedgray] (s1) -- (s2);
+  \draw[->, thick, mutedgray] (s2) -- (s3);
+  \draw[->, thick, mutedgray] (s3) -- (s4);
+\end{tikzpicture}
+\caption{End-to-end Primal-Shortened ISD pipeline. Shaded green boxes mark our four GPU-oriented modifications; blue boxes reuse MiniMax's algebraic lift and the unmodified official TII verification harness.}
+\label{fig:pipeline}
+\end{figure}
+
+MiniMax's Mode-6 CPU sampler performs full random systematic reduction followed by a Stern-style~\cite{Stern89,Dumer91} meet-in-the-middle search with $p=3+3$ non-pivot bits, $l=17$ collision bits ($2^{17} = 131{,}072$ buckets), and a $16\text{ KB}$ occupancy bitmap pre-filter. On a CPU, each thread owns one reduction whose hash table fits in L2/L3 cache. Moving that layout directly to a GPU breaks down: our per-SM port (\texttt{v1}: $58$ blocks, $6$ slots $\times$ $32$ bytes per bucket, $25.7\text{ MB}$/table) allocates $1.49\text{ GB}$ of live hash tables. Shrinking entries to $16$ bytes with $4$ slots and raising occupancy to $2$ blocks/SM (\texttt{v2}: $116$ blocks, $1.04\text{ GB}$ total) lowered \texttt{TII-237} throughput from $2{,}208$ to $1{,}872\text{ it/s}$ because both allocations exceed the $50.3\text{ MB}$ L4 L2 cache by more than $20\times$ while twice as many blocks contend for cache lines. Our hardened solver \path{src/minwords_gpu_v4.cu} (derived from MiniMax's \texttt{minwords\_mt.c} under Apache-2.0) addresses this with four coupled modifications.
+
+\paragraph{1. Lossless 16-byte packing without left indices.}
+Because the bucket index $h \in [0, 2^{17})$ fixes the lowest $17$ syndrome bits, any instance with $mt \le 145$ packs all remaining $mt - 17 \le 128$ bits losslessly into two $64$-bit words:
 \[
   p_0 = (s_0 \gg 17) \mid (s_1 \ll 47), \qquad p_1 = (s_1 \gg 17) \mid (s_2 \ll 47).
 \]
-We store only $(p_0, p_1)$ as a $16$-byte \texttt{ulonglong2} and omit left-triple indices $(a, b, c)$ from the hot bucket array. Given a $17$-bit bucket collision, a uniform-syndrome heuristic puts the conditional weight-filter pass probability $\binom{mt-17}{w-6}/2^{mt-17}$ at $2^{-27.02}$ for \texttt{TII-245} and $2^{-33.57}$ for \texttt{TII-237}. Because the packing is lossless for $mt \le 145$, every exact match ($\operatorname{popc}(p_0 \oplus r_{p_0}) + \operatorname{popc}(p_1 \oplus r_{p_1}) = w - 6$) is a genuine weight-$w$ codeword of the systematic matrix; only on these rare hits does the thread unpack $(s_0, s_1, s_2)$ and recover $(a, b, c)$ from shared-memory \texttt{colmask}. With $4$ slots per bucket, each bucket payload is $64$ bytes aligned ($8.39\text{ MB}$/table, alongside a separate $0.52\text{ MB}$ count array and $16\text{ KB}$ bitmap). Under a Poisson load model, the $4$-slot cap retains $\approx 98.03\%$ of left triples on \texttt{TII-245} ($\lambda \approx 1.60$) and $\approx 95.13\%$ on \texttt{TII-237} ($\lambda \approx 2.20$, discarding $\approx 4.87\%$ in atomic arrival order).
+We store only $(p_0, p_1)$ as a $16$-byte \texttt{ulonglong2} and drop left-triple indices $(a, b, c)$ from the hot bucket array. Under a uniform-syndrome heuristic given a $17$-bit bucket collision, the conditional weight-filter pass probability $\binom{mt-17}{w-6}/2^{mt-17}$ is $2^{-27.02}$ on \texttt{TII-245}, $2^{-31.39}$ on \texttt{TII-228}, $2^{-33.57}$ on \texttt{TII-237}, and $2^{-35.74}$ on \texttt{TII-235}. Because the $128$-bit packing is lossless up to $mt=145$, every exact match ($\operatorname{popc}(p_0 \oplus r_{p_0}) + \operatorname{popc}(p_1 \oplus r_{p_1}) = w - 6$) is a genuine weight-$w$ codeword of the systematic matrix; only on these rare hits does the thread unpack $(s_0, s_1, s_2)$ and recover $(a, b, c)$ from shared-memory \texttt{colmask}. With $4$ slots per bucket, each bucket payload is $64$ bytes aligned ($8.39\text{ MB}$/table, plus a separate $0.52\text{ MB}$ count array and $16\text{ KB}$ bitmap). Under a Poisson load model, the $4$-slot cap retains $98.03\%$ of left triples on \texttt{TII-245} ($\lambda \approx 1.60$), $95.13\%$ on \texttt{TII-237} ($\lambda \approx 2.20$), $89.4\%$ on \texttt{TII-228} at $n'=395$ ($\lambda \approx 2.99$), and $85.8\%$ on \texttt{TII-235} at $n'=425$ ($\lambda \approx 3.41$).
 
-\paragraph{Cooperative execution sized for L2 ($G=4$).}
-Rather than one table per SM, we allocate $G=4$ concurrent tables whose bucket payloads, counts, and bitmaps occupy $35{,}717{,}120$ bytes ($35.7\text{ MB}$ / $34.1\text{ MiB}$)---below the L2 cache capacities of NVIDIA L4 ($50.3\text{ MB}$) and A100 ($41.9\text{ MB}$). Sixteen blocks ($4{,}096$ threads) cooperate per group during \texttt{k\_build} and \texttt{k\_probe}, caching the $16\text{ KB}$ occupancy bitmap in shared memory per block.
+\paragraph{2. Cooperative L2-sized execution ($G=4$ on L4, $G=8$ on L40S).}
+Instead of assigning one table per SM, we allocate $G$ concurrent tables whose combined footprint stays below the target GPU's nominal L2 cache. On NVIDIA L4 ($58$ SMs, $50.3\text{ MB}$ L2) and A100 ($41.9\text{ MB}$ L2), $G=4$ with $16$ blocks per group ($64$ blocks total) uses $35{,}717{,}120$ bytes ($35.7\text{ MB}$). On NVIDIA L40S ($142$ SMs, $100.7\text{ MB}$ L2), compiling with \texttt{-DG\_GROUPS=8 -DBLOCKS\_PER\_GROUP=18} doubles concurrency to $G=8$ ($71.4\text{ MB} < 100.7\text{ MB}$ L2) and saturates all $142$ SMs with $144$ cooperative blocks. Every block caches its group's $16\text{ KB}$ occupancy bitmap in shared memory.
 
-\paragraph{Batched systematic reduction.}
-Moving from \texttt{v2} to the cooperative $G=4$ kernel (\texttt{v3}) lifted \texttt{TII-237} throughput to only $2{,}671\text{ it/s}$. CUDA event profiling over $256$ iterations on L4 showed why:
+\paragraph{3. Batched systematic reduction and hardware scaling.}
+Switching from \texttt{v2} to unbatched cooperative \texttt{v3} ($G=4$) lifted \texttt{TII-237} throughput to only $2{,}671\text{ it/s}$. CUDA event profiling over $256$ iterations on L4 explained the ceiling:
 \[
   \texttt{k\_sys}: 68.00\text{ ms}~(74.0\%), \quad
   \texttt{k\_zero}: 0.34\text{ ms}, \quad
   \texttt{k\_build}: 10.82\text{ ms}, \quad
   \texttt{k\_probe}: 12.72\text{ ms}.
 \]
-The bucket build and probe were already fast ($23.54\text{ ms}$ combined), but launching \texttt{k\_sys<<<4, 256>>>} left $54$ of $58$ L4 SMs idle during random systematic reduction. Batching $256$ independent reductions in one \texttt{k\_sys<<<256, 256>>>} launch ($2.2\text{ MB}$ state buffer) ahead of $64$ cooperative build/probe steps raised single-L4 throughput $3.5\times$ to $9{,}462\text{ it/s}$ on \texttt{TII-237} and $3.17\times$ to $11{,}035\text{ it/s}$ on \texttt{TII-245}.
+Running \texttt{k\_sys<<<4, 256>>>} left $54$ of $58$ SMs idle during Gaussian elimination. Batching $64G$ independent reductions in one \texttt{k\_sys<<<64G, 256>>>} launch ($256$ reductions / $2.2\text{ MB}$ state buffer on L4; $512$ reductions / $4.4\text{ MB}$ on L40S) ahead of $64$ build/probe steps jumped L4 throughput $3.5\times$ to $9{,}462\text{ it/s}$ on \texttt{TII-237} and $3.17\times$ to $11{,}035\text{ it/s}$ peak ($11{,}024\text{ it/s}$ full-run average) on \texttt{TII-245}. In our single-run \texttt{TII-237} comparison, an L4 ($50.3\text{ MB}$ L2, $2.04\text{ GHz}$ boost, $1.94\text{ CU/hr}$ on Colab) beat an A100-SXM4-40GB ($41.9\text{ MB}$ L2, $1.41\text{ GHz}$ boost, $\approx 6.8\text{ CU/hr}$, $8{,}035\text{ it/s}$) by $1.18\times$ in raw speed and $>4\times$ in iterations per CU, while L40S ($100.7\text{ MB}$ L2, $142$ SMs) reached $12{,}081\text{ it/s}$ on \texttt{TII-228} ($n'=395$) and $11{,}684\text{--}15{,}593\text{ it/s}$ on \texttt{TII-235} ($n'=425$).
 
-In single-run measurements on \texttt{TII-237}, one NVIDIA L4 ($50.3\text{ MB}$ L2, $2.04\text{ GHz}$ boost clock, $1.94\text{ CU/hr}$ on Colab as of Nov.\ 2026) achieved $9{,}462\text{ it/s}$, compared to $8{,}035\text{ it/s}$ on an A100-SXM4-40GB ($41.9\text{ MB}$ L2, $1.41\text{ GHz}$ boost clock, $\approx 6.8\text{ CU/hr}$)---$1.18\times$ faster in iteration rate and $>4\times$ higher in iterations per compute unit.
+\paragraph{4. GPU-aware optimal shortening window $n'$.}
+MiniMax's \path{optimal_shortening_sizes} picks a narrow prefix $n'$ whose random-code supply $N(n') = \binom{n'}{w}2^{-mt}$ exceeds the planning threshold $R(n') = F(k'-1)-(m+1)$ by roughly $1.4\text{--}2.2\times$, keeping the $\mathbb{F}_2$ linear system small. Under a Poisson-bucket and uniform coupon-collector model, expected iterations scale as
+\[
+  I(n') = \frac{-\ln\!\bigl(1 - 1.02\,R(n') / N(n')\bigr)}{\rho_4(\lambda)\,p_1(n')},
+\]
+where $\rho_4(\lambda)$ is the $4$-slot retention fraction at left-list load $\lambda = \binom{\lfloor k'/2\rfloor}{3}/2^{17}$ and $p_1(n') = \binom{\lfloor k'/2\rfloor}{3}\binom{\lceil k'/2\rceil}{3}\binom{mt-17}{w-6}/\binom{n'}{w}$. A tight supply drives $-\ln(1 - R/N)$ sharply upward as duplicates accumulate. Widening $n'$ grows $R(n')$ only quadratically (SageMath M4RI still finishes in under $25\text{ s}$) while $N(n')$ grows exponentially, cutting duplicate waste and raising per-iteration yield until $\binom{k'/2}{3}$ and $4$-slot overflow bend total GPU-hours back up (Figure~\ref{fig:bench}, right). On \texttt{TII-228}, widening $n'$ from a narrow $n'=355$ point to $n'=395$ lowers modeled L4 GPU-hours by $47\%$ ($7.4\text{ h} \to 3.9\text{ h}$; MiniMax's published \texttt{TII-228} run used $n'=361$). On \texttt{TII-235}, widening $n'$ from $393$ to $425$ lowers modeled L4 GPU-hours by $34\%$ ($122.0\text{ h} \to 80.5\text{ h}$), and in practice kept cross-worker overlap across $10$ parallel GPUs to $2.06\%$.
 
 \section{Experiments}
 
-Table~\ref{tab:evolution} records the single-run progression from \texttt{v1} to \texttt{v4} on one NVIDIA L4. All four kernels are included in our repository so the engineering trade-offs can be inspected directly.
+Figure~\ref{fig:bench} summarizes both the \texttt{v1}--\texttt{v4} kernel progression on L4 and the modeled shortening-window trade-off for \texttt{TII-235}. All four historical kernels (\texttt{v1}--\texttt{v4}) are published in our repository.
 
-\begin{table}[t]
+\begin{figure}[t]
 \centering
-\caption{Single-run GPU-ISD iteration throughput on one NVIDIA L4 (24\,GB, \texttt{sm\_89}). Historical kernels \texttt{v1}--\texttt{v3} are in \texttt{src/baselines/}.}
-\label{tab:evolution}
-\small
-\begin{tabular}{llrr}
-\toprule
-Ver. & Engineering Change & \texttt{TII-245} (it/s) & \texttt{TII-237} (it/s) \\
-\midrule
-\texttt{v1} & 1 block/SM, 32-byte entries, 6 slots/bkt ($1.49\text{ GB}$) & $3{,}536$ & $2{,}208$ \\
-\texttt{v2} & 2 blocks/SM, 16-byte \texttt{ulonglong2}, 4 slots/bkt ($1.04\text{ GB}$) & $2{,}730$ & $1{,}872$ \\
-\texttt{v3} & Cooperative $G=4$ ($35.7\text{ MB}$), unbatched \texttt{k\_sys} & $3{,}478$ & $2{,}671$ \\
-\texttt{v4} & Batched full-SM \texttt{k\_sys} + cooperative $G=4$ & $11{,}035$ & $9{,}462$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{tikzpicture}[node font=\scriptsize]
+  % Left panel: v1 -> v4 bar chart
+  \begin{scope}[xshift=0cm]
+    \node[font=\footnotesize\bfseries] at (2.8, 3.95) {(a) Kernel Evolution on 1$\times$ L4 (it/s)};
+    \draw[mutedgray] (0.7, 0.3) -- (0.7, 3.45);
+    \draw[mutedgray] (0.7, 0.3) -- (5.5, 0.3);
+    \foreach \v/\y/\ta/\tb in {v1/2.85/3536/2208, v2/2.05/2730/1872, v3/1.25/3478/2671, v4/0.45/11035/9462} {
+      \node[anchor=east, font=\scriptsize\ttfamily] at (0.65, \y+0.22) {\v};
+      \pgfmathsetmacro{\wa}{\ta/11500*4.3}
+      \pgfmathsetmacro{\wb}{\tb/11500*4.3}
+      \fill[linkblue!75] (0.7, \y+0.24) rectangle ({0.7+\wa}, \y+0.46);
+      \node[anchor=west, font=\tiny] at ({0.72+\wa}, \y+0.35) {\ta};
+      \fill[accentgreen!80] (0.7, \y) rectangle ({0.7+\wb}, \y+0.22);
+      \node[anchor=west, font=\tiny] at ({0.72+\wb}, \y+0.11) {\tb};
+    }
+    % Clean non-overlapping legend
+    \fill[linkblue!75] (2.4, 3.25) rectangle (2.65, 3.42);
+    \node[anchor=west] at (2.72, 3.33) {\texttt{TII-245}};
+    \fill[accentgreen!80] (4.05, 3.25) rectangle (4.30, 3.42);
+    \node[anchor=west] at (4.37, 3.33) {\texttt{TII-237}};
+  \end{scope}
+
+  % Right panel: Optimal n' U-curve for TII-235 (mt=144)
+  \begin{scope}[xshift=7.6cm]
+    \node[font=\footnotesize\bfseries] at (3.1, 3.95) {(b) Modeled L4-h vs.\ $n'$ on \texttt{TII-235}};
+    \draw[->, mutedgray] (0.6, 0.4) -- (5.8, 0.4) node[below=2pt, font=\tiny] {$n'$};
+    \draw[->, mutedgray] (0.6, 0.4) -- (0.6, 3.45) node[left=2pt, font=\tiny] {L4-h};
+    \foreach \h/\yy in {80/1.03, 100/1.90, 120/2.77} {
+      \draw[mutedgray!30, dashed] (0.6, \yy) -- (5.6, \yy);
+      \node[anchor=east, font=\tiny] at (0.55, \yy) {\h};
+    }
+    \foreach \np/\xx in {393/0.9, 409/2.0, 425/3.1, 441/4.2, 457/5.3} {
+      \draw[mutedgray] (\xx, 0.35) -- (\xx, 0.45);
+      \node[below=2pt, font=\tiny] at (\xx, 0.35) {\np};
+    }
+    \draw[thick, accentgreen]
+      (0.90, 2.85) -- (1.45, 1.71) -- (2.00, 1.31) -- (2.55, 1.13) -- (3.10, 1.05) -- (3.65, 1.03) -- (4.20, 1.04) -- (4.75, 1.07) -- (5.30, 1.12);
+    \fill[accentred] (0.90, 2.85) circle (2.5pt);
+    \node[anchor=west, text=accentred, font=\tiny] at (1.05, 2.98) {Narrow $n'=393$: $122\text{ h}$};
+    \fill[accentgreen] (3.10, 1.05) circle (3pt);
+    \node[anchor=west, text=accentgreen, font=\tiny\bfseries, fill=white, inner sep=1pt] at (3.25, 1.42) {Chosen $n'=425$ ($80.5\text{ h}$, $-34\%$)};
+  \end{scope}
+\end{tikzpicture}
+\caption{(a) Single-run \texttt{v1}--\texttt{v4} iteration throughput on one NVIDIA L4 (baseline sources in \texttt{src/baselines/}). (b) Modeled L4 GPU-hours vs.\ shortening prefix $n'$ for \texttt{TII-235} ($mt=144$), incorporating $4$-slot Poisson bucket retention and coupon-collector depletion.}
+\label{fig:bench}
+\end{figure}
 
 \paragraph{Control run: \texttt{TII-245} ($n=493, m=9, t=12, mt=108$).}
-At $n'=326$, a single L4 harvested $24{,}500$ host-verified weight-$25$ codewords in $1{,}175.5\text{ s}$ ($19.6\text{ min}$, $12{,}958{,}464$ iterations). SageMath 10.7 algebraic recovery on the Colab Xeon host took $9.78\text{ s}$ (harvesting plus lift: $1{,}185.3\text{ s}$), yielding relation quotient dimension $10$, direct lift of dimension $9$, bit-identical RREF reconstruction ($H_{\mathrm{cand}} = H_{\mathrm{pub}}$), and official checker output \texttt{check\_solution\_track2.sage} ($245$) $= 1$. MiniMax~\cite{MiniMax26} reported $2{,}500\text{ s}$ harvesting for $26{,}352$ words ($44.6$ core-hours) and $2{,}510\text{ s}$ end-to-end on a $64$-core Xeon Gold 6338 server---a $2.12\times$ wall-clock ratio. Under uniform coupon-collector sampling with random-code supply $N = \binom{326}{25}/2^{108} \approx 52{,}299$, adjusting for their larger $26{,}352$-word target scales the ratio to $\approx 1.91\times$.
+At MiniMax's prefix $n'=326$, one NVIDIA L4 harvested $24{,}500$ host-verified weight-$25$ codewords in $1{,}175.5\text{ s}$ ($19.6\text{ min}$, $12{,}958{,}464$ iterations, $11{,}024\text{ it/s}$ average). SageMath 10.7 algebraic recovery on the Colab Xeon host completed in $9.78\text{ s}$ ($1{,}185.3\text{ s}$ harvesting plus lift), returning exact quotient dimension $10$, direct lift of dimension $9$, bit-exact RREF equality ($H_{\mathrm{cand}} = H_{\mathrm{pub}}$), and \texttt{check\_solution\_track2.sage} ($245$) $= 1$. MiniMax~\cite{MiniMax26} reported $2{,}500\text{ s}$ harvesting for $26{,}352$ words and $2{,}510\text{ s}$ end-to-end ($44.6$ core-hours) on a $64$-core Xeon Gold 6338 server ($2.12\times$ raw wall-clock ratio). Under uniform coupon-collector sampling with random-code supply $N = \binom{326}{25}/2^{108} \approx 52{,}299$, normalizing for their larger $26{,}352$-word target gives a $1.91\times$ speedup.
 
-\paragraph{Key recovery: \texttt{TII-237} ($n=500, m=9, t=15, mt=135$).}
-At $n'=378$ ($\operatorname{rank}(H_A)=135$), we harvested $29{,}742$ host-verified unique weight-$31$ codewords across Colab L4 workers totaling $\approx 22.1$ aggregate GPU-hours and $\approx 7.4 \times 10^8$ ISD iterations ($708.6\text{M}$ measured plus $\approx 30\text{M}$ estimated; Table~\ref{tab:manifest}). Total Colab account spend across \emph{all} development, \texttt{v1}--\texttt{v4} profiling, the single-run A100 benchmark, \texttt{TII-245} verification, and \texttt{TII-237} harvesting and lifting was $68.97\text{ CU}$ ($946.08 \to 877.11\text{ CU}$).
+\paragraph{Head-to-head benchmark: \texttt{TII-228} ($n=500, m=9, t=14, mt=126$).}
+MiniMax~\cite{MiniMax26} solved \texttt{TII-228} at $n'=361$ in $57.1\text{ min}$ wall-clock using $2{,}463$ physical CPU core-hours across $2{,}048\text{--}5{,}120$ AMD EPYC cores. Using our wider prefix $n'=395$ ($\operatorname{rank}(H_A)=126$, $k'=269$, threshold $36{,}037$), we ran eight Modal NVIDIA L40S workers ($G=8$, $144$ blocks, distinct seeds) from scratch, each targeting $4{,}720$ weight-$29$ codewords. Every worker finished with zero output-buffer overflows in $949.6\text{--}989.2\text{ s}$ ($12{,}025\text{--}12{,}125\text{ it/s}$, mean $12{,}081\text{ it/s}$), accumulating $93{,}574{,}144$ exact ISD iterations across $2.15$ L40S GPU-hours. End-to-end wall-clock time including Modal container startup and checkpoint transfer was $18.90\text{ min}$ ($\approx\$4.30$). Deduplicating the $37{,}760$ raw words yielded $37{,}084$ unique codewords ($1.79\%$ cross-worker overlap). SageMath 10.5 on an $8$-core CPU container completed the algebraic lift in $24.64\text{ s}$ ($19.94\text{ s}$ elimination, quotient dim $10$, direct lift dim $9$) and passed \texttt{check\_solution\_track2.sage} ($228$) $= 1$ in $5.43\text{ s}$. Although the two runs used different shortening prefixes and distinct hardware cost models (CPU core-hours vs.\ GPU-hours), eight L40S GPUs cut wall-clock recovery time on \texttt{TII-228} by $3.0\times$ relative to MiniMax's cluster run.
+
+\paragraph{Codimension milestone: \texttt{TII-237} ($n=500, m=9, t=15, mt=135$).}
+At $n'=378$ ($\operatorname{rank}(H_A)=135$, $k'=243$, threshold $29{,}394$, random-code supply $\approx 62{,}943$), we harvested $29{,}742$ unique weight-$31$ codewords across Colab L4 workers totaling $\approx 22.1$ GPU-hours and $\approx 7.4 \times 10^8$ iterations ($708.6\text{M}$ measured across five logged L4 workers plus $\approx 30\text{M}$ estimated on three short exploratory runs; full per-worker ledger in \path{codewords/RUN_MANIFEST.md}). Capture--recapture between our two largest independent-seed L4 workers ($|A|=17{,}009$, $|B|=8{,}570$, $|A \cap B|=2{,}215$) gave $\hat{N} = 65{,}809 \pm 1{,}123$ ($95\%$ CI $[63{,}608, 68{,}010]$), within $5\%$ of the random-code prediction. SageMath 10.7 lifted the key in $23.23\text{ s}$ ($15.33\text{ s}$ elimination, quotient dim $10$, direct lift dim $9$) and passed \texttt{check\_solution\_track2.sage} ($237$) $= 1$. Total Colab spend across all development, profiling, \texttt{TII-245}, and \texttt{TII-237} was $68.97\text{ CU}$.
+
+\paragraph{Approaching the 128-bit packing ceiling: \texttt{TII-235} ($n=502, m=9, t=16, mt=144$).}
+Punctured at $10$ positions ($512 - 502 = 10$), \texttt{TII-235} resists full-support vanishing attacks and requires $144 - 17 = 127$ packed syndrome bits---within one bit of our $128$-bit \texttt{ulonglong2} limit. At our widened prefix $n'=425$ ($\operatorname{rank}(H_A)=144$, $k'=281$, threshold $39{,}331$, random-code supply $\approx 787{,}006$), ten Modal NVIDIA L40S workers ($G=8$, $144$ blocks, distinct seeds) each targeted $4{,}120$ weight-$33$ codewords. All ten workers completed with zero overflows across $1.67 \times 10^9$ exact iterations and $39.62$ L40S GPU-hours in $4.30\text{ h}$ wall-clock ($\approx\$79$; Table~\ref{tab:results}). Merging the $41{,}200$ raw words produced $40{,}353$ unique codewords ($2.06\%$ overlap). Despite the widened $39{,}341$-feature matrix, SageMath 10.5 completed the algebraic lift in $17.97\text{ s}$ ($15.06\text{ s}$ elimination, exact quotient dim $10$, direct lift dim $9$), recovering a monic irreducible degree-$16$ polynomial $g(X) \in \mathbb{F}_{2^9}[X]$ and $502$-element support $L$ with bit-exact RREF match and \texttt{check\_solution\_track2.sage} ($235$) $= 1$ in $3.37\text{ s}$. Table~\ref{tab:witnesses} records all twelve SHA-256 verification digests.
 
 \begin{table}[t]
 \centering
-\caption{Per-worker harvesting ledger for \texttt{TII-237} ($n'=378, w=31$), distinguishing measured device counters from throughput-estimated exploratory runs. Per-worker counts sum to $35{,}307$ before cross-worker deduplication to $29{,}742$.}
-\label{tab:manifest}
+\caption{Summary of all four verified GPU key recoveries. Total iterations for \texttt{TII-245}, \texttt{TII-228}, and \texttt{TII-235} are exact device counters; \texttt{TII-237} combines $708.6\text{M}$ measured and $\approx 30\text{M}$ estimated iterations.}
+\label{tab:results}
 \small
-\setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{lllrrrr}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrrrr}
 \toprule
-Worker ID & GPU & Accounting & GPU-h & Iterations & Rate (it/s) & Words \\
+Instance & $mt$ & $n'$ & Hardware & Wall & GPU-h & Iterations & Unique Words & Lift (s) \\
 \midrule
-\texttt{tii-l4-2} & L4 & Measured & $11.19$ & $381.3\text{M}$ & $9{,}462$ & $17{,}009$ \\
-\texttt{tii-l4-b} & L4 & Measured & $5.20$ & $177.7\text{M}$ & $9{,}485$ & $8{,}570$ \\
-\texttt{tii-gpu} & L4 & Measured & $2.12$ & $65.6\text{M}$ & $8{,}615^\dagger$ & $3{,}355$ \\
-\texttt{tii-237-w3} & L4 & Measured & $2.00$ & $67.7\text{M}$ & $9{,}402$ & $3{,}316$ \\
-\texttt{tii-l4-1} & L4 & Measured & $0.49$ & $16.2\text{M}$ & $9{,}124$ & $838^\ddagger$ \\
-\texttt{w1/w2/w4} & L4 & Estimated & $\approx 1.1$ & $\approx 30\text{M}$ & $7.6\text{--}9.4\text{k}$ & $1{,}281$ \\
-\midrule
-Merged Total & Colab L4 & Combined & $\approx 22.1$ & $\approx 7.4\times 10^8$ & --- & $29{,}742$ \\
+\texttt{TII-245} & $108$ & $326$ & $1\times$ Colab L4 & $19.6\text{ m}$ & $0.33$ & $12.96\text{M}$ & $24{,}500$ & $9.78$ \\
+\texttt{TII-228} & $126$ & $395$ & $8\times$ Modal L40S & $18.9\text{ m}$ & $2.15$ & $93.57\text{M}$ & $37{,}084$ & $24.64$ \\
+\texttt{TII-237} & $135$ & $378$ & Colab L4 workers & --- & $\approx 22.1$ & $\approx 7.4\times 10^8$ & $29{,}742$ & $23.23$ \\
+\texttt{TII-235} & $144$ & $425$ & $10\times$ Modal L40S & $4.30\text{ h}$ & $39.62$ & $1.67\times 10^9$ & $40{,}353$ & $17.97$ \\
 \bottomrule
-\multicolumn{7}{l}{\footnotesize $^\dagger$Earlier L4 run with lower initial clock/kernel mix. $^\ddagger$Plus $938$ net unique words from a pre-reset checkpoint.}
 \end{tabular}
 \end{table}
 
-SageMath 10.7 algebraic recovery on the $29{,}742$ codewords completed in $23.23\text{ s}$ ($15.33\text{ s}$ for $29{,}404$-feature affine-polar elimination, yielding exact relation quotient dimension $10$ and direct lift of dimension $9$). The recovered monic irreducible degree-$15$ polynomial $g(X) \in \mathbb{F}_{2^9}[X]$ (modulus $a^9 + a^4 + 1$) and $500$-element support $L$ reconstruct $H_{\mathrm{pub}}$ bit-for-bit and pass both \texttt{check\_solution\_track2.sage} ($237$) $= 1$ and our pure-Python verifier (Table~\ref{tab:witnesses}).
-
 \begin{table}[t]
 \centering
-\caption{Cryptographic verification summary ($\mathbb{F}_{2^9} = \mathbb{F}_2[a]/(a^9 + a^4 + 1)$). Both private-key witnesses pass the official TII checker; our Python verifier additionally checks all published codewords and SHA-256 digests.}
+\caption{Cryptographic verification digests ($\mathbb{F}_{2^9} = \mathbb{F}_2[a]/(a^9 + a^4 + 1)$). All four equivalent private keys pass the official TII SageMath checker; our pure-Python verifier additionally verifies all $131{,}679$ published codewords and SHA-256 digests.}
 \label{tab:witnesses}
-\small
+\scriptsize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lll}
 \toprule
 Instance & Artifact & SHA-256 Digest \\
 \midrule
-\texttt{TII-245} & \texttt{pk\_McEliece\_245.txt} & \texttt{ea029e86d34d13334bb9439f87333a8e}\\
-                 &                                & \texttt{87ebd902379ec515331d2bed78e973a8}\\
-                 & \texttt{sk\_McEliece\_245.txt} & \texttt{967d2f4e934ca7617bdd71cfb5a0fcd9}\\
-                 &                                & \texttt{8ec0f54a2c50db5170899ab3debac523}\\
-                 & \texttt{words\_245\_np326.txt.gz} & \texttt{b54b11b6c695b32a08aedb545cfb68da}\\
-                 & ($24{,}500$ words)             & \texttt{c9e0e3e7e1184175474344bfc59b4a11}\\
+\texttt{TII-245} & \texttt{pk\_McEliece\_245.txt} & \texttt{ea029e86d34d13334bb9439f87333a8e87ebd902379ec515331d2bed78e973a8} \\
+                 & \texttt{sk\_McEliece\_245.txt} & \texttt{967d2f4e934ca7617bdd71cfb5a0fcd98ec0f54a2c50db5170899ab3debac523} \\
+                 & \texttt{words\_245\_np326.txt.gz} ($24{,}500$) & \texttt{b54b11b6c695b32a08aedb545cfb68dac9e0e3e7e1184175474344bfc59b4a11} \\
 \midrule
-\texttt{TII-237} & \texttt{pk\_McEliece\_237.txt} & \texttt{b3cba630833e00d8e225d1943be87c31}\\
-                 &                                & \texttt{ddd74f270bd73f61c373aa70b1356f3b}\\
-                 & \texttt{sk\_McEliece\_237.txt} & \texttt{128e26137b2b2e8128316cbc5e1c7766}\\
-                 &                                & \texttt{073d790e26a308a9766a120f05770e0f}\\
-                 & \texttt{words\_237\_np378.txt.gz} & \texttt{7793b74438d76235c8f5048a6b564411}\\
-                 & ($29{,}742$ words)             & \texttt{3b8372d999f837e1c09c274b2a472531}\\
+\texttt{TII-228} & \texttt{pk\_McEliece\_228.txt} & \texttt{f98ddc98e6f54a60308b49ec36e16f70b6249ba4b7eac79f72cdf7fe70649f5a} \\
+                 & \texttt{sk\_McEliece\_228.txt} & \texttt{717388cc390977ad536e23bdb6c7bc8e2cf69f065d69e3133f7fd27efd6dd51d} \\
+                 & \texttt{words\_228\_np395.txt.gz} ($37{,}084$) & \texttt{46760cda2c768cdf3be5a559ed6a65895afe68d9e7241f52b91c80aede1e93d8} \\
+\midrule
+\texttt{TII-237} & \texttt{pk\_McEliece\_237.txt} & \texttt{b3cba630833e00d8e225d1943be87c31ddd74f270bd73f61c373aa70b1356f3b} \\
+                 & \texttt{sk\_McEliece\_237.txt} & \texttt{128e26137b2b2e8128316cbc5e1c7766073d790e26a308a9766a120f05770e0f} \\
+                 & \texttt{words\_237\_np378.txt.gz} ($29{,}742$) & \texttt{7793b74438d76235c8f5048a6b5644113b8372d999f837e1c09c274b2a472531} \\
+\midrule
+\texttt{TII-235} & \texttt{pk\_McEliece\_235.txt} & \texttt{f56256c7b6f253ff7748207ee05545d92644f6f8c5a7189fcaff9442eedd87a5} \\
+                 & \texttt{sk\_McEliece\_235.txt} & \texttt{e96fdd90a9364e275d110dfb20b3fc56553123a7fb9d65e4c64772dbc195c221} \\
+                 & \texttt{words\_235\_np425.txt.gz} ($40{,}353$) & \texttt{e8ee29c0b4750d3da4ac48b9e27d99c9c14598dad46bcf6526cd093e35d5329c} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -170,40 +333,37 @@ Instance & Artifact & SHA-256 Digest \\
 \section{Limitations and Artifacts}
 \label{sec:limits}
 
-\paragraph{Cache measurements and variance.}
-Sizing the $35.7\text{ MB}$ table footprint below L2 capacity does not prove $100\%$ L2 hit rates without hardware counter profiling (e.g., Nsight Compute). Table~\ref{tab:evolution} and the A100 figure are single-run measurements without $G \in \{2, 4, 8\}$ ablations.
+\paragraph{Cache residency and hardware variance.}
+Sizing the table footprint below nominal L2 capacity ($35.7\text{ MB}$ on L4, $71.4\text{ MB}$ on L40S) does not prove $100\%$ L2 hit rates without Nsight hardware counters, and the \texttt{v1}--\texttt{v3} and A100 comparisons are single-run observations without $G \in \{2, 4, 8\}$ ablations on identical hardware. On Modal, L40S nodes exhibited two distinct boost-clock tiers ($11.0\text{k}$ vs.\ $15.6\text{k it/s}$ on \texttt{TII-235}), which accounts for the $3.0\text{--}4.3\text{ h}$ spread across workers.
 
 \paragraph{Sampling bias and non-determinism.}
-Non-pivot columns are split in sorted order rather than shuffled per reduction, which biases sampling; $4$-slot buckets discard $\approx 4.87\%$ of left triples on \texttt{TII-237} in atomic arrival order, which makes per-iteration output non-deterministic. Both effects make the Lincoln--Petersen supply figure a heuristic.
+Non-pivot columns are partitioned in sorted order rather than shuffled per reduction, introducing sampling bias; $4$-slot buckets discard left triples in atomic arrival order ($\approx 4.9\%$ on \texttt{TII-237}, $\approx 14.2\%$ on \texttt{TII-235}), making per-iteration output non-deterministic. Both effects render capture--recapture supply estimates heuristic.
 
-\paragraph{Domain limits and post-run hardening.}
-\path{src/minwords_gpu_v4.cu} enforces $mt \le 145$, $k' \le 320$, and $\texttt{mode}=6$ (rejecting wider instances such as \texttt{TII-250} with $k'=347$). After our harvesting runs, we hardened host-side validation, checkpoint persistence, and \texttt{k\_sys} RNG initialization and retry bounds while leaving the \texttt{k\_build} and \texttt{k\_probe} search kernels unchanged.
-
-\paragraph{Key equivalence and leaderboard status.}
-The witnesses certify \emph{equivalent} private keys $(g, L)$ generating $H_{\mathrm{pub}}$ bit-for-bit, not necessarily the originally sampled generator representation. \texttt{TII-237} has not yet been acknowledged on the official TII leaderboard.
+\paragraph{Domain bounds and key equivalence.}
+\path{src/minwords_gpu_v4.cu} enforces $mt \le 145$, $k' \le 320$, and $\texttt{mode}=6$. Extending to \texttt{TII-185} ($mt=153$, $1$ puncture) requires either wider buckets or truncated $16$-byte pre-filtering on the remaining $8$ syndrome bits, and moving past $mt=153$ hits $m=10$ instances at $mt=160$ whose shortened dimension ($k' \approx 397$) increases modeled search cost by more than two orders of magnitude. All recovered witnesses certify \emph{equivalent} private keys $(g, L)$ generating $H_{\mathrm{pub}}$ bit-for-bit, not necessarily the originally sampled generator representation, and neither \texttt{TII-237} nor \texttt{TII-235} has yet been acknowledged on the official TII leaderboard.
 
 \paragraph{Artifacts.}
-All code, witnesses, compressed codeword datasets, and run manifests are publicly available at \url{https://github.com/raullenchai/tii-mceliece-gpu} under Apache-2.0 (preserving MiniMax's upstream notices in \path{LICENSE} and \path{NOTICE}). Running
+All CUDA sources, historical baselines, compressed codeword datasets ($131{,}679$ verified words across four instances), equivalent private keys, and run manifests are available at \url{https://github.com/raullenchai/tii-mceliece-gpu} under Apache-2.0 (preserving MiniMax's notices in \path{LICENSE} and \path{NOTICE}). Running
 \begin{center}
 \texttt{python3 src/verify\_witnesses.py -{}-check-words}
 \end{center}
-checks both equivalent private keys, hardcoded SHA-256 digests, and all $24{,}500 + 29{,}742$ harvested codewords in pure Python with no external dependencies, while \path{src/solve_from_words.py} reproduces the algebraic recovery directly from the published codeword files (runtime depends on the host CPU).
+checks all four equivalent private keys, hardcoded SHA-256 digests, and all $131{,}679$ harvested codewords in pure Python with zero external dependencies, while \path{src/solve_from_words.py} reproduces the SageMath algebraic recovery directly from the published codeword archives.
 
 \section{Conclusion}
 
-Packing MiniMax's Mode-6 Stern harvester into a GPU's L2 cache budget moves high-codimension Primal-Shortened ISD from CPU clusters to GPUs. On one NVIDIA L4, \texttt{minwords\_gpu\_v4} sustains $9{,}462\text{--}11{,}035\text{ it/s}$, and $\approx 22.1$ Colab L4 GPU-hours suffice to recover an equivalent private key for \texttt{TII-237} ($mt=135$). These experiments do not demonstrate practical key recovery at proposed Classic McEliece parameter sets ($m \ge 12, t \ge 64, mt \ge 768$).
+Packing MiniMax's Mode-6 Stern harvester into the GPU L2 cache and widening the shortening window $n'$ moves high-codimension Primal-Shortened ISD from multi-thousand-core CPU clusters to a handful of serverless GPUs. Eight Modal L40S GPUs solve \texttt{TII-228} ($mt=126$) in $18.9\text{ min}$ ($2.15$ GPU-hours), Colab L4 workers solve \texttt{TII-237} ($mt=135$) in $\approx 22.1$ GPU-hours, and ten Modal L40S GPUs recover \texttt{TII-235} ($mt=144$) in $4.30\text{ h}$ ($39.62$ GPU-hours, $\approx\$79$). These experiments do not demonstrate practical key recovery at proposed Classic McEliece parameter sets ($m \ge 12, t \ge 64, mt \ge 768$).
 
 \begin{thebibliography}{11}
 \raggedright
 \bibitem{McEliece78} R. J. McEliece, ``A public-key cryptosystem based on algebraic coding theory,'' \emph{DSN Progress Report}, 42-44, pp.~114--116, 1978.
 \bibitem{TIIRepo} E. Kirshanova and A. Esser, \emph{TII Decoding Challenges}, \url{https://github.com/ElenaKirshanova/tii_decoding_challenge}.
+\bibitem{MiniMax26} MiniMax, ``Primal-Shortened ISD Key Recovery on Binary Goppa Codes,'' \url{https://github.com/MiniMax-AI/Research/tree/main/Cryptography/TII-McEliece}, Nov.\ 20, 2026.
 \bibitem{BLT26} M. Bardet, A. Lemoine, and J.-P. Tillich, ``An attack on the CFS scheme and on TII McEliece challenges,'' \emph{IACR ePrint 2026/430} (CRYPTO 2026), \url{https://eprint.iacr.org/2026/430}.
 \bibitem{Hemmert26} T. Hemmert, ``Key recovery for the McEliece cryptosystem using higher-order vanishing,'' \emph{IACR ePrint 2026/1339}, 2026, \url{https://eprint.iacr.org/2026/1339}.
 \bibitem{Vedenev26} K. Vedenev, ``Extending distinguishing to key recovery for subfield subcodes of GRS codes,'' \emph{IACR ePrint 2026/1747}, 2026, \url{https://eprint.iacr.org/2026/1747}.
 \bibitem{Weis26} S. A. Weis, ``Improving GIJS key recovery for Classic McEliece,'' \emph{IACR ePrint 2026/1984}, 2026, \url{https://eprint.iacr.org/2026/1984}.
 \bibitem{Saarinen26HOVER} M.-J. O. Saarinen, ``HOVER: Higher-order vanishing endomorphism recovery,'' \emph{IACR ePrint 2026/1778}, 2026, \url{https://eprint.iacr.org/2026/1778}.
 \bibitem{Saarinen26TwoAnchor} M.-J. O. Saarinen, ``Two-Anchor Holdout/Hermite: Solving the TII-254 McEliece key recovery challenge,'' \emph{IACR ePrint 2026/1986}, 2026, \url{https://eprint.iacr.org/2026/1986}.
-\bibitem{MiniMax26} MiniMax, ``Primal-Shortened ISD Key Recovery on Binary Goppa Codes,'' \url{https://github.com/MiniMax-AI/Research/tree/main/Cryptography/TII-McEliece}, Nov.\ 20, 2026.
 \bibitem{Stern89} J. Stern, ``A method for finding codewords of small weight,'' in \emph{Coding Theory and Applications}, LNCS 388, pp.~106--113, Springer, 1989.
 \bibitem{Dumer91} I. Dumer, ``On minimum distance decoding of linear codes,'' in \emph{Proc.\ 5th Joint Soviet--Swedish Int.\ Workshop on Information Theory}, pp.~50--52, 1991.
 \end{thebibliography}

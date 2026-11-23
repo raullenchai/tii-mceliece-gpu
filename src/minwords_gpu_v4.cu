@@ -37,8 +37,12 @@
 #define S6_MASK (S6_BKTS - 1u)
 #define S6_SLOTS 4              /* 4 x 16 B = 64 B aligned bucket payload */
 
+#ifndef G_GROUPS
 #define G_GROUPS 4              /* 4 tables + counts + bitmaps = 35,717,120 B (~35.7 MB / 34.1 MiB) */
-#define BLOCKS_PER_GROUP 16     /* 64 cooperative blocks total */
+#endif
+#ifndef BLOCKS_PER_GROUP
+#define BLOCKS_PER_GROUP 16     /* 64 cooperative blocks total on L4 (58 SMs) */
+#endif
 #define STEPS_PER_SYNC 64       /* 64 * 4 = 256 reductions per host sync */
 #define TOTAL_BATCH (STEPS_PER_SYNC * G_GROUPS)
 #define THREADS 256

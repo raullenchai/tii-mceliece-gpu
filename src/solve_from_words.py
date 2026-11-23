@@ -33,7 +33,9 @@ import urllib.request
 TII_PK_BASE_URL = "https://raw.githubusercontent.com/ElenaKirshanova/tii_decoding_challenge/main/public_keyRec"
 KNOWN_PK_SHA256 = {
     245: "ea029e86d34d13334bb9439f87333a8e87ebd902379ec515331d2bed78e973a8",
+    228: "f98ddc98e6f54a60308b49ec36e16f70b6249ba4b7eac79f72cdf7fe70649f5a",
     237: "b3cba630833e00d8e225d1943be87c31ddd74f270bd73f61c373aa70b1356f3b",
+    235: "f56256c7b6f253ff7748207ee05545d92644f6f8c5a7189fcaff9442eedd87a5",
 }
 
 if len(sys.argv) < 6:
