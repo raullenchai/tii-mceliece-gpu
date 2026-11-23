@@ -152,33 +152,34 @@ Figure~\ref{fig:pipeline} separates MiniMax's upstream algebraic pipeline from o
 \begin{tikzpicture}[
   >=Stealth,
   node font=\scriptsize,
-  stage/.style={draw, rounded corners=3pt, minimum height=1.85cm, align=center, inner sep=4pt}
+  stage/.style={draw, rounded corners=3pt, minimum height=2.15cm, text width=3.15cm, align=center, inner sep=4pt}
 ]
-  \node[stage, draw=accentgreen, fill=greenbg, thick, text width=3.1cm] (s1) at (0,0)
-    {\textbf{1. GPU-Optimal Shortening}\\[3pt]
-     Widen $n'$ past CPU choice\\
-     (\texttt{228}: $395$, \texttt{235}: $425$)\\[3pt]
+  \node[stage, draw=accentgreen, fill=greenbg, thick] (s1) at (0,0)
+    {\textbf{1. Optimal Shortening}\\[4pt]
+     Widen $n'$ past CPU\\
+     \texttt{228}: $395$, \texttt{235}: $425$\\
+     $-34\%$ to $-47\%$ GPU-h\\[4pt]
      \textcolor{accentgreen}{\textbf{Ours (Mod.\ 4)}}};
 
-  \node[stage, draw=accentgreen, fill=greenbg, thick, text width=3.65cm] (s2) at (4.15,0)
-    {\textbf{2. L2-Sized GPU-ISD}\\[3pt]
+  \node[stage, draw=accentgreen, fill=greenbg, thick] (s2) at (3.75,0)
+    {\textbf{2. L2-Sized GPU-ISD}\\[4pt]
      16B zero-index packing\\
-     $G \in \{4,8\}$ L2 cooperation\\
-     Batched full-SM \texttt{k\_sys}\\[3pt]
+     $G \in \{4,8\}$ L2 tables\\
+     Batched full-SM \texttt{k\_sys}\\[4pt]
      \textcolor{accentgreen}{\textbf{Ours (Mods.\ 1--3)}}};
 
-  \node[stage, draw=linkblue, fill=boxbg, text width=3.0cm] (s3) at (8.25,0)
-    {\textbf{3. Quadratic Polar Lift}\\[3pt]
+  \node[stage, draw=linkblue, fill=boxbg] (s3) at (7.50,0)
+    {\textbf{3. Polar Lifting}\\[4pt]
      $\mathbb{F}_2$ M4RI on $F(d)$ cols\\
-     Quotient dim $m{+}1 \to m$\\
-     $10\text{--}25\text{ s}$ in SageMath\\[3pt]
+     Quotient $m{+}1 \to m$\\
+     $10\text{--}25\text{ s}$ in SageMath\\[4pt]
      \textcolor{linkblue}{MiniMax Route A~\cite{MiniMax26}}};
 
-  \node[stage, draw=linkblue, fill=boxbg, text width=2.8cm] (s4) at (11.95,0)
-    {\textbf{4. Extend \& Verify}\\[3pt]
+  \node[stage, draw=linkblue, fill=boxbg] (s4) at (11.25,0)
+    {\textbf{4. Extend \& Verify}\\[4pt]
      $O(n)$ support extension\\
-     \mbox{Bit-exact} RREF check\\
-     \texttt{check\_solution} $= 1$\\[3pt]
+     Bit-exact RREF match\\
+     \texttt{check\_solution} $= 1$\\[4pt]
      \textcolor{linkblue}{MiniMax + TII~\cite{TIIRepo}}};
 
   \draw[->, thick, mutedgray] (s1) -- (s2);
