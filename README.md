@@ -1,6 +1,6 @@
 # Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD for High-Codimension Binary Goppa Key Recovery
 
-**[Interactive Visual Explainer](https://raullenchai.github.io/tii-mceliece-gpu/explainer.html)** · **[Manuscript PDF](paper/main.pdf)** · **[Run Manifest](codewords/RUN_MANIFEST.md)**
+**[IACR ePrint 2026/2993](https://eprint.iacr.org/2026/2993)** · **[Interactive Visual Explainer](https://raullenchai.github.io/tii-mceliece-gpu/explainer.html)** · **[Manuscript PDF](paper/main.pdf)** · **[Run Manifest](codewords/RUN_MANIFEST.md)**
 
 Accompanying artifact repository for **Raullen Chai & Xinxin Fan** (MachineFi Labs), *"Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD for High-Codimension Binary Goppa Key Recovery"* (`paper/main.pdf`).
 
