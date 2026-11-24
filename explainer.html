@@ -391,8 +391,8 @@
   <!-- SECTION 3 -->
   <section>
     <span class="sec-tag">Part 03 · How It Works Under the Hood</span>
-    <h2>3. Two-Stage Relay: L2-Resident GPU Harvesting + 10–25 s Algebraic Lift</h2>
-    <p>We keep MiniMax's algebraic polar-lifting algorithm and Mode-6 Stern parameters (<code>p = 3+3, l = 17</code>, 16 KB occupancy bitmap) untouched. Why? Because at <code>mt ≥ 108</code>, <strong>over 99% of total runtime is spent harvesting minimum odd-weight (<code>w = 2t + 1</code>) codewords</strong>, while SageMath finishes the algebraic lift in 10–25 seconds.</p>
+    <h2>3. Two-Stage Relay: L2-Resident GPU Harvesting + 10–40 s Algebraic Lift</h2>
+    <p>We keep MiniMax's algebraic polar-lifting algorithm and Mode-6 Stern parameters (<code>p = 3+3, l = 17</code>, 16 KB occupancy bitmap) untouched. Why? Because at <code>mt ≥ 108</code>, <strong>over 99% of total runtime is spent harvesting minimum odd-weight (<code>w = 2t + 1</code>) codewords</strong>, while SageMath finishes the algebraic lift in 10–40 seconds.</p>
 
     <div class="diagram-box">
       <svg viewBox="0 0 920 205" xmlns="http://www.w3.org/2000/svg">
