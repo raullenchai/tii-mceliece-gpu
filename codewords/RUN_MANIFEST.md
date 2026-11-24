@@ -1,4 +1,18 @@
-# Harvesting Run Manifest (`TII-245`, `TII-228`, `TII-237`, `TII-235`)
+# Harvesting Run Manifest (`TII-245`, `TII-228`, `TII-237`, `TII-235`, `TII-185`)
+
+## 0. `TII-185` ($n=511, m=9, t=17, mt=153, n'=447, w=35$) — Hybrid 7× Modal L40S + 3× Colab L4
+- Kernel: `src/minwords_gpu_v5.cu` (`MAXR=192`, truncated 16-byte `ulonglong2` range pre-filter `[21, 29]` over bits `17..144` omitting the top `8` bits, followed by exact 145-bit triple reconstruction and full 153-bit Hamming weight check; preserves identical `35.7 MB` L4 / `71.4 MB` L40S L2-sized working set).
+- **Modal 7× NVIDIA L40S** (`G=8, BLOCKS_PER_GROUP=18`, `seeds = 185101..185107`, target `5,600` each):
+  - `w0` (`185101`): `5,600` words, `810,063,872` exact iters (`17.20 h`, `~13.1k it/s`)
+  - `w2` (`185103`): `5,600` words, `832,788,480` exact iters (`17.70 h`, `~13.1k it/s`)
+  - `w1, w3, w4, w5, w6`: `4,853 + 4,981 + 4,897 + 4,951 + 4,844 = 24,526` words, `3,566,976,512` exact iters (`21.10 h` each, `~9.4k it/s`)
+  - **Modal Subtotal**: `35,726` raw words, `5,209,828,864` exact ISD iterations, `~140.4` L40S GPU-hours (`~$281 USD`), `21.1 h` wall-clock.
+- **Colab 3× NVIDIA L4** (`G=4, BLOCKS_PER_GROUP=16`, `seeds = 185001..185053`):
+  - **Colab Subtotal**: `8,031` raw words, `1,166,641,408` exact ISD iterations, `~60.0` L4 GPU-hours (`~116 CU`, `~5.4k it/s` per L4).
+- **Combined Totals**:
+  - **Total exact ISD iterations**: `6,376,470,272` (`6.38 × 10^9`)
+  - **Raw → Deduplicated Unique**: `43,757 → 43,117` (`1.46%` cross-worker overlap; rank threshold `43,062`)
+  - **SageMath 10.5 Lift (8-core CPU)**: `39.01 s` (`31.60 s` elimination, quotient dim `10`, direct lift dim `9`), `check_solution_track2.sage 185 == 1` (`6.12 s`)
 
 ## 1. `TII-235` ($n=502, m=9, t=16, mt=144, n'=425, w=33$) — Modal 10× NVIDIA L40S
 - Kernel: `src/minwords_gpu_v4.cu` compiled with `-O3 -arch=sm_89 --use_fast_math -DG_GROUPS=8 -DBLOCKS_PER_GROUP=18` (`71.4 MB < 100.7 MB L2`, `144` cooperative blocks across `142` SMs).

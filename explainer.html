@@ -146,10 +146,10 @@
     <div class="badge-row">
       <span class="badge">Post-Quantum Cryptanalysis</span>
       <span class="badge purple">L2-Sized Cooperative CUDA</span>
-      <span class="badge green">4/4 Verified · Up to mt = 144 ✓</span>
+      <span class="badge green">5/5 Verified · Up to mt = 153 ✓</span>
     </div>
     <h1>Packing Stern into L2:<br/>GPU-Accelerated Binary Goppa Key Recovery</h1>
-    <p>An intuitive visual guide to how we moved high-codimension Primal-Shortened ISD from multi-thousand-core CPU clusters to a handful of serverless GPUs — recovering equivalent private keys across four TII McEliece Track-2 challenges up to <code>TII-235</code> (<code>mt = 144</code>, 127 of 128 packed bits) for ~$79.</p>
+    <p>An intuitive visual guide to how we moved high-codimension Primal-Shortened ISD from multi-thousand-core CPU clusters to a handful of serverless GPUs — recovering equivalent private keys across five TII McEliece Track-2 challenges up to <code>TII-185</code> (<code>mt = 153</code>, crossing the 128-bit packing ceiling via truncated 16-byte range pre-filtering).</p>
     <div class="header-links">
       <a href="https://github.com/raullenchai/tii-mceliece-gpu">GitHub Repo</a>
       <a href="paper/main.pdf">Read Paper (PDF)</a>
@@ -160,8 +160,8 @@
   <div class="kpi-grid">
     <div class="kpi">
       <div class="label">Highest Verified Codimension</div>
-      <div class="val green">mt = 144 ✓</div>
-      <div class="sub">TII-235 · 127/128 packed bits · check_solution = 1</div>
+      <div class="val green">mt = 153 ✓</div>
+      <div class="sub">TII-185 · v5 truncated 16B prefilter · check = 1</div>
     </div>
     <div class="kpi">
       <div class="label">TII-235 Wall-Clock &amp; Cost</div>
@@ -175,17 +175,18 @@
     </div>
     <div class="kpi">
       <div class="label">Full Verified Sweep</div>
-      <div class="val">4/4 PASS</div>
-      <div class="sub">245 (108) · 228 (126) · 237 (135) · 235 (144)</div>
+      <div class="val">5/5 PASS</div>
+      <div class="sub">245 (108) · 228 (126) · 237 (135) · 235 (144) · 185 (153)</div>
     </div>
   </div>
 
   <div class="highlight green">
-    <strong>Verified 4-Instance Sweep (All Pass Official TII SageMath Checker &amp; Pure-Python Verifier):</strong><br/>
+    <strong>Verified 5-Instance Sweep (All Pass Official TII SageMath Checker &amp; Pure-Python Verifier — 174,796 Codewords):</strong><br/>
     • <strong><code>TII-245</code> (<code>mt=108</code>)</strong>: 1× Colab L4 in <strong>19.6 min</strong> (1,175.5s harvest + 9.78s lift, 24,500 words, ~1.91× target-normalized over 64-core Xeon)<br/>
     • <strong><code>TII-228</code> (<code>mt=126</code>)</strong>: 8× Modal L40S in <strong>18.9 min</strong> (2.15 GPU-h / ~$4.30, 37,084 words + 24.64s lift) — <strong>3.0× faster</strong> wall-clock than MiniMax's 2,048–5,120-core EPYC run (57.1 min / 2,463 core-hours)<br/>
     • <strong><code>TII-237</code> (<code>mt=135</code>)</strong>: Colab L4 workers in <strong>~22.1 GPU-h</strong> (29,742 words + 23.23s lift)<br/>
-    • <strong><code>TII-235</code> (<code>mt=144</code>)</strong>: 10× Modal L40S in <strong>4.30 h</strong> (39.62 GPU-h / ~$79, 40,353 words + <strong>17.97s lift</strong>) — 1 bit below our 128-bit lossless packing ceiling
+    • <strong><code>TII-235</code> (<code>mt=144</code>)</strong>: 10× Modal L40S in <strong>4.30 h</strong> (39.62 GPU-h / ~$79, 40,353 words + <strong>17.97s lift</strong>) — 127 of 128 lossless packed bits<br/>
+    • <strong><code>TII-185</code> (<code>mt=153</code>)</strong>: Hybrid 7× Modal L40S + 3× Colab L4 via <code>v5</code> truncated 16B prefilter in <strong>21.1 h</strong> (140.4 L40S-h + 60.0 L4-h, 43,117 words + <strong>39.01s lift</strong>, <code>check=1</code>)
   </div>
 
   <!-- SECTION 1 -->
@@ -309,12 +310,13 @@
         <rect x="492" y="116" width="136" height="26" rx="6" fill="#064e3b" stroke="#34d399" stroke-width="1.8"/>
         <text x="560" y="133" text-anchor="middle" fill="#a7f3d0" font-size="11.5" font-weight="800">TII-235 Solved!</text>
 
-        <!-- Lv 6: mt=153-160 (Cliff) -->
-        <circle cx="690" cy="105" r="8" fill="#fb7185"/>
-        <text x="690" y="294" text-anchor="middle" fill="#fda4af" font-size="11" font-weight="700">Lv.6 · mt=153–160</text>
-        <text x="690" y="310" text-anchor="middle" fill="#94a3b8" font-size="10">Past 128-bit ceiling</text>
-        <text x="690" y="324" text-anchor="middle" fill="#94a3b8" font-size="10">TII-185 (~180 L40S-h est.)</text>
-        <text x="690" y="88" text-anchor="middle" fill="#fda4af" font-size="11" font-weight="700">Next Frontier</text>
+        <!-- Lv 6: mt=153 (TII-185 DONE!) -->
+        <circle cx="690" cy="105" r="12" fill="#10b981" stroke="#a7f3d0" stroke-width="2.5"/>
+        <text x="690" y="294" text-anchor="middle" fill="#34d399" font-size="11.5" font-weight="800">Lv.6 · mt=153 ✓★</text>
+        <text x="690" y="310" text-anchor="middle" fill="#34d399" font-size="10">v5: 140h L40S + 60h L4</text>
+        <text x="690" y="324" text-anchor="middle" fill="#a7f3d0" font-size="10">Crossed 128b ceiling!</text>
+        <rect x="622" y="64" width="136" height="26" rx="6" fill="#064e3b" stroke="#34d399" stroke-width="1.8"/>
+        <text x="690" y="81" text-anchor="middle" fill="#a7f3d0" font-size="11.5" font-weight="800">TII-185 Solved!</text>
 
         <!-- Lv 7: Classic McEliece (Endgame) -->
         <circle cx="835" cy="58" r="9" fill="#a78bfa" stroke="#ddd6fe" stroke-width="2"/>
@@ -370,13 +372,13 @@
           <td><strong>10× L40S: 4.30 h</strong> (39.62 GPU-h / ~$79 · <strong>17.97s lift</strong>)</td>
           <td><span style="color:var(--green);font-weight:800">1 (PASS)</span></td>
         </tr>
-        <tr>
-          <td><strong>Next</strong></td>
+        <tr class="ours">
+          <td><strong>New ★</strong></td>
           <td><code>TII-185</code> (511, 9, 17)</td>
           <td>153</td>
-          <td>Exceeds 128-bit lossless format</td>
-          <td>Requires truncated 16B prefilter (<code>v5</code>, ~180 L40S-h est.)</td>
-          <td><span style="color:var(--rose)">Open</span></td>
+          <td>Previously undocumented (&gt;128-bit ceiling)</td>
+          <td><strong>v5 (7×L40S+3×L4): 21.1 h</strong> (140.4 L40S-h + 60 L4-h · <strong>39.01s lift</strong>)</td>
+          <td><span style="color:var(--green);font-weight:800">1 (PASS)</span></td>
         </tr>
       </tbody>
     </table>
