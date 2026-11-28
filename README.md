@@ -2,6 +2,8 @@
 
 **[IACR ePrint 2026/2993](https://eprint.iacr.org/2026/2993)** · **[Interactive Visual Explainer](https://raullenchai.github.io/tii-mceliece-gpu/explainer.html)** · **[Manuscript PDF](paper/main.pdf)** · **[Run Manifest](codewords/RUN_MANIFEST.md)**
 
+> *Also archived in our unified open research collection at [raullenchai/open-research](https://github.com/raullenchai/open-research). This standalone repository is preserved permanently so links in IACR ePrint 2026/2993 remain stable.*
+
 Accompanying artifact repository for **Raullen Chai & Xinxin Fan** (MachineFi Labs), *"Packing Stern into L2: GPU-Accelerated Primal-Shortened ISD for High-Codimension Binary Goppa Key Recovery"* (`paper/main.pdf`).
 
 This repository contains our CUDA-accelerated **L2-Sized Cooperative Stern-Style ISD** samplers (`src/minwords_gpu_v4.cu` for lossless $mt \le 145$ and `src/minwords_gpu_v5.cu` for truncated 16B range pre-filtering up to $mt \le 192$), baseline evolution (`src/baselines/`), manuscript (`paper/main.pdf`), all **174,796** verified harvested codewords (`codewords/`), zero-dependency verifier (`src/verify_witnesses.py`), and five verified equivalent private-key witnesses (`witnesses/`) for Track 2 of the **TII McEliece Key Recovery Challenges**.
